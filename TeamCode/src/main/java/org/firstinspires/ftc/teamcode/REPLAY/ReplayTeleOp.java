@@ -302,6 +302,9 @@ public class ReplayTeleOp extends LinearOpMode {
             }
 
             if(gamepad1.b){
+                String str = totalData.get(100);
+                String[] replayData = str.split("[,]", 0);
+                telemetry.addData("Replay", replayData);
                 telemetry.addData("totalData", totalData);
             }
 
@@ -323,6 +326,8 @@ public class ReplayTeleOp extends LinearOpMode {
     public void dataReplay(int PB){
         //Based on the amount of cycles since beginning playback, pull data from a specific point of the Total Power Data.
         replayData.clear();
+//        String str = totalData.get(PB);
+//        String[] replayData = str.split("[,]", 0);
 //        replayData = totalData.get(PB);
         leftDrive.setPower(replayData.get(0));
         BleftDrive.setPower(replayData.get(1));
