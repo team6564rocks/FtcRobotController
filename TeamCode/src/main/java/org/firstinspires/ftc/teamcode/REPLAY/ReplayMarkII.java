@@ -279,8 +279,12 @@ public class ReplayMarkII extends LinearOpMode {
 
                     //Keep the Run Through Value above 0 to avoid errors, and below the total amount of data to avoid crashing.
                     if(runThrough < 1) runThrough = 1;
-                    if(runThrough > (powerData.size()/4) - 1){
-                        runThrough = (powerData.size()/4) - 1;
+                    if(runThrough > (powerData.size()/4)){
+                        runThrough = (powerData.size()/4);
+                    }
+
+                    if(runThrough >= (powerData.size()/4)){
+                        gx = 0;
                     }
 
                     if(gx < 0.25 && gx > -0.25){
@@ -324,6 +328,7 @@ public class ReplayMarkII extends LinearOpMode {
         String filename = desiredFile;
         File file = AppUtil.getInstance().getSettingsFile(filename);
         ReadWriteFile.writeFile(file, String.valueOf(powerData));
+        stop();
     }
 
     public void dataReplay(int PB){
