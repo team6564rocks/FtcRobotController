@@ -4,6 +4,8 @@ import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.ReadWriteFile;
 
@@ -18,8 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-@TeleOp(name="Time Based Replay", group = "RoboReplay")
-public class TimeBasedReplay extends LinearOpMode {
+@TeleOp(name="Replay MK III", group = "RoboReplay")
+public class ReplayMarkIII extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -27,12 +29,21 @@ public class TimeBasedReplay extends LinearOpMode {
     private DcMotor rightDrive = null;
     private DcMotor BleftDrive = null;
     private DcMotor BrightDrive = null;
+    private DcMotor intake = null;
+    private DcMotor lift = null;
+    private DcMotor flip = null;
+//    private DcMotor spin = null;
+    private Servo grab = null;
 
     //Power stuff.
     double fl;
     double bl;
     double fr;
     double br;
+    int fli;
+    int bli;
+    int fri;
+    int bri;
 
     //Movement Stuff
     double x;
@@ -45,9 +56,7 @@ public class TimeBasedReplay extends LinearOpMode {
     Orientation angles;
 
     //Array Experimentation:
-    List<Double> replayData = new ArrayList<Double>();
-    List<Double> powerData = new ArrayList<Double>();
-    List<List<Double>> totalData = new ArrayList<List<Double>>();
+    List<Integer> powerData = new ArrayList<Integer>();
     int runThrough = 0;
 
     //Playback Mode:
@@ -56,7 +65,6 @@ public class TimeBasedReplay extends LinearOpMode {
     String mode = "Drive";
     boolean firstStart = false;
     boolean edit = false;
-    double timeScale = 15;
 
     //File Select:
     String selectedFile = "File1.txt";
@@ -64,6 +72,11 @@ public class TimeBasedReplay extends LinearOpMode {
 
     //Finer Control Mode"
     boolean fineControl = false;
+
+    int bruh = 1 ;
+    double test;
+
+    boolean doIntake = false;
 
     @Override
     public void runOpMode() {
@@ -78,35 +91,52 @@ public class TimeBasedReplay extends LinearOpMode {
         rightDrive = hardwareMap.get(DcMotor.class, "FR");
         BleftDrive  = hardwareMap.get(DcMotor.class, "BL");
         BrightDrive = hardwareMap.get(DcMotor.class, "BR");
+        intake = hardwareMap.get(DcMotor.class, "IT");
+        lift = hardwareMap.get(DcMotor.class, "LT");
+        flip = hardwareMap.get(DcMotor.class, "FP");
+        grab = hardwareMap.get(Servo.class, "Grab");
+//        spin = hardwareMap.get(DcMotor.class, "Spin");
 
         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+//        spin.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        lift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         leftDrive.setDirection(DcMotor.Direction.REVERSE);
         rightDrive.setDirection(DcMotor.Direction.FORWARD);
         BleftDrive.setDirection(DcMotor.Direction.REVERSE);
         BrightDrive.setDirection(DcMotor.Direction.FORWARD);
+        intake.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift.setDirection(DcMotorSimple.Direction.FORWARD);
+        flip.setDirection(DcMotorSimple.Direction.FORWARD);
+//        spin.setDirection(DcMotorSimple.Direction.FORWARD);
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        flip.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+//        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         waitForStart();
 
-        ElapsedTime PlayTime = new ElapsedTime();
-
         while (opModeIsActive()) {
 
-            //When Y is pressed, clear the list of Motor Powers compiled so far.
-            if(gamepad1.y) totalData.clear();
+            test = System.currentTimeMillis();
+
+            recInitEncoder();
 
             //When Back is pressed, switch between edit and play modes.
             if(gamepad1.back){
@@ -114,13 +144,10 @@ public class TimeBasedReplay extends LinearOpMode {
                 while(gamepad1.back) idle();
             }
 
-            //When the Left Stick is pressed down, toggle between Fine and Regular Control.
-            if(gamepad1.left_stick_button){
-                fineControl = !fineControl;
-                while (gamepad1.left_stick_button) idle();
-            }
-
             if(edit){
+
+                //When Y is pressed, clear the list of Motor Powers compiled so far.
+                if(gamepad1.y) powerData.clear();
 
                 //Use the DPad to change the selected file to save data to.
                 if(gamepad1.dpad_right){
@@ -150,7 +177,20 @@ public class TimeBasedReplay extends LinearOpMode {
                 }
 
                 telemetry.addData("Selected Save File:", selectedFile);
-                telemetry.addData("totalData Size", totalData.size());
+            }
+
+            else{
+//                if(gamepad1.start) spin.setPower(0.5);
+//                if(!gamepad1.start) spin.setPower(0);
+                grab.setDirection(Servo.Direction.FORWARD);
+                if(gamepad1.y) grab.setPosition(0.9);
+                if(gamepad1.b) grab.setPosition(0.5);
+                if(gamepad1.a){
+                    doIntake = !doIntake;
+                    while(gamepad1.a) idle();
+                }
+                if(doIntake) intake.setPower(0.7);
+                else intake.setPower(0);
             }
 
             //Depending on the state of the robot, act accordingly.
@@ -164,35 +204,14 @@ public class TimeBasedReplay extends LinearOpMode {
                         while (gamepad1.right_stick_button) idle();
                     }
 
-                    //If Up is pressed, and there is data available for playback, play it forwards.
-                    if(gamepad1.dpad_up && totalData.size() > 0){
-                        mode = "Forward";
-                        firstStart = true;
-                        while(gamepad1.dpad_up) idle();
-                    }
-
-                    //If Down is pressed, and there is data available for playback, play it backwards.
-                    if(gamepad1.dpad_down && totalData.size() > 0){
-                        mode = "Backwards";
-                        firstStart = true;
-                        while(gamepad1.dpad_down) idle();
-                    }
-
                     //If X is pressed, toggle recording of Motor Powers.
                     if(gamepad1.x){
                         recording = !recording;
                         while(gamepad1.x) idle();
                     }
 
-                    //Record Data while recording is True.
-                    if(recording){
-                        if(PlayTime.milliseconds() > 15){
-                            recordData();
-                            PlayTime.reset();
-                        }
-                    }
 
-                    //Drive the Robot according to Player input.
+
                     motorDrive();
 
                     break;
@@ -204,34 +223,10 @@ public class TimeBasedReplay extends LinearOpMode {
                         while(gamepad1.dpad_up) idle();
                     }
 
-                    //When beginning playback, set the runThrough count to 0 to start at the correct place in the data.
-                    if(firstStart){
-                        PlayTime.reset();
-                        runThrough = 0;
-                        firstStart = false;
-                    }
-
-                    //While there is still data to read, playback the Motor Powers.
-                    if(runThrough < (totalData.size()-1)){
-                        dataReplay(runThrough);
-                        if(PlayTime.milliseconds() > timeScale){
-                            runThrough += 1;
-                            PlayTime.reset();
-                        }
-                        telemetry.addData("Run Through", runThrough);
-                    }
-
                     //When playback is Complete, return to the main Drive mode.
                     else {
                         mode = "Drive";
                     }
-
-                    /*Emergency Measure:
-                    try {
-                        Thread.sleep(7);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }*/
 
                     break;
 
@@ -244,32 +239,20 @@ public class TimeBasedReplay extends LinearOpMode {
 
                     //When beginning playback, set the runThrough count to 0 to start at the correct place in the data.
                     if(firstStart){
-                        PlayTime.reset();
-                        runThrough = 0;
+                        runThrough = (powerData.size()/4);
                         firstStart = false;
                     }
 
                     //While there is still data to read, playback the Motor Powers.
-                    if(runThrough < (totalData.size()-1)){
+                    if(runThrough < ((powerData.size()/4)-1) && runThrough > 0){
                         dataReplayInverse(runThrough);
-                        if(PlayTime.milliseconds() > timeScale){
-                            runThrough += 1;
-                            PlayTime.reset();
-                        }
-                        telemetry.addData("Run Through", runThrough);
+                        runThrough -= 1;
                     }
 
                     //When playback is Complete, return to the main Drive mode.
                     else {
                         mode = "Drive";
                     }
-
-                    /*Emergency Measure:
-                    try {
-                        Thread.sleep(7);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }*/
 
                     break;
 
@@ -281,52 +264,84 @@ public class TimeBasedReplay extends LinearOpMode {
                         while(gamepad1.right_stick_button) idle();
                     }
 
+                    if(gamepad1.left_stick_button){
+                        runThrough = powerData.size()/4;
+                    }
+
                     //When beginning playback, set the runThrough count to 0 to start at the correct place in the data.
                     if(firstStart){
-                        PlayTime.reset();
                         runThrough = 1;
                         firstStart = false;
                     }
 
+                    double reverse = 1;
+
+                    //Refresh the gyroscope every loop.
+                    angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
+                    currentAngle = -angles.firstAngle;
+
                     //Set Left Stick X to a variable to reduce typing.
                     double gx = gamepad1.left_stick_x;
 
-                    //If Left Stick is not moving, robot shouldn't move either.
+                    //Time Controls
+                    if(gx > 0){
+                        runThrough += 1;
+                        reverse = 1;
+                    }
+                    if(gx < 0){
+                        runThrough -= 1;
+                        reverse = -1;
+                    }
+
+                    //Keep the Run Through Value above 0 to avoid errors, and below the total amount of data to avoid crashing.
+                    if(runThrough < 1) runThrough = 1;
+                    if(runThrough > (powerData.size()/4)){
+                        runThrough = (powerData.size()/4);
+                    }
+
+                    if(runThrough >= (powerData.size()/4)){
+                        gx = 0;
+                    }
+
                     if(gx < 0.25 && gx > -0.25){
                         leftDrive.setPower(0);
                         BleftDrive.setPower(0);
                         rightDrive.setPower(0);
                         BrightDrive.setPower(0);
                     }
-
-                    //If Left Stick is moving, change the runThrough count based on value.
                     else{
-                        if(PlayTime.milliseconds() > timeScale){
-                            runThrough += gx/Math.abs(gx);
-                            PlayTime.reset();
+                        if (reverse > 0){
+                            dataReplay(runThrough);
                         }
+                        else{
+                            dataReplayInverse(runThrough);
+                        }
+
                     }
-
-                    //Keep the Run Through Value above 0 to avoid errors, and below the total amount of data to avoid crashing.
-                    if(runThrough < 1) runThrough = 1;
-                    if(runThrough > totalData.size() - 1){
-                        runThrough = totalData.size() - 1;
-                    }
-
-                    dataReplay(runThrough);
-
-                    /*Emergency Measure:
-                    try {
-                        Thread.sleep(7);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }*/
 
                     break;
             }
 
-            telemetry.addData("Edit Mode?", edit);
-            telemetry.addData("Fine Control?", fineControl);
+            if (gamepad1.b) telemetry.addData("PowerData", powerData);
+
+            //Lift Motor Controls.
+            if(!gamepad1.right_bumper || gamepad1.left_bumper) lift.setPower(0);
+            if(gamepad1.right_bumper) lift.setPower(1);
+            if(gamepad1.left_bumper) lift.setPower(-1);
+
+            //Flip Motor Controls.
+            if(!gamepad1.dpad_left || gamepad1.dpad_right) flip.setPower(0);
+            if(gamepad1.dpad_right) flip.setPower(0.35);
+            if(gamepad1.dpad_left) flip.setPower(-0.35);
+
+            //Record Data while recording is True.
+            if(recording) recordData();
+
+            telemetry.addData("TEST", System.currentTimeMillis() - test);
+            telemetry.addData("Rot", Math.toDegrees(currentAngle));
+            telemetry.addData("State", mode);
+            telemetry.addData("Run Through", runThrough);
+            telemetry.addData("State Size", powerData.size()/4);
             telemetry.update();
         }
     }
@@ -335,39 +350,39 @@ public class TimeBasedReplay extends LinearOpMode {
         //Take the total Motor Power data and put it into a txt file for later playback.
         String filename = desiredFile;
         File file = AppUtil.getInstance().getSettingsFile(filename);
-        ReadWriteFile.writeFile(file, String.valueOf(totalData));
+        ReadWriteFile.writeFile(file, String.valueOf(powerData));
+        stop();
     }
 
     public void dataReplay(int PB){
-        //Based on the amount of cycles since beginning playback, pull data from a specific point of the Total Power Data.
-        replayData.clear();
-        replayData = totalData.get(PB);
-        leftDrive.setPower(replayData.get(0));
-        BleftDrive.setPower(replayData.get(1));
-        rightDrive.setPower(replayData.get(2));
-        BrightDrive.setPower(replayData.get(3));
+        int Gaming = PB * 4;
+        leftDrive.setPower(powerData.get(Gaming));
+        BleftDrive.setPower(powerData.get(Gaming+1));
+        rightDrive.setPower(powerData.get(Gaming+2));
+        BrightDrive.setPower(powerData.get(Gaming+3));
     }
 
     public void dataReplayInverse(int PB){
-        //Based on the amount of cycles since beginning playback, pull data from a specific point of the Total Power Data.
-        //This function just plays the data in reverse.
-        replayData.clear();
-        replayData = totalData.get(totalData.size()-PB);
-        leftDrive.setPower(-1*replayData.get(0));
-        BleftDrive.setPower(-1*replayData.get(1));
-        rightDrive.setPower(-1*replayData.get(2));
-        BrightDrive.setPower(-1*replayData.get(3));
+        int Gaming = PB * 4;
+        leftDrive.setPower(-1*powerData.get(Gaming));
+        BleftDrive.setPower(-1*powerData.get(Gaming+1));
+        rightDrive.setPower(-1*powerData.get(Gaming+2));
+        BrightDrive.setPower(-1*powerData.get(Gaming+3));
+    }
+
+    public void recInitEncoder(){
+        fli = leftDrive.getCurrentPosition();
+        bli = BleftDrive.getCurrentPosition();
+        fri = rightDrive.getCurrentPosition();
+        bri = BrightDrive.getCurrentPosition();
     }
 
     public void recordData(){
         //Take each of the Motor's Power Data, then save it to a list. Then save that list to a collection of lists.
-        powerData.clear();
-        powerData.add(fl);
-        powerData.add(bl);
-        powerData.add(fr);
-        powerData.add(br);
-        totalData.add(powerData);
-        telemetry.addData("Power List", powerData);
+        powerData.add(leftDrive.getCurrentPosition()-fli);
+        powerData.add(BleftDrive.getCurrentPosition()-bli);
+        powerData.add(rightDrive.getCurrentPosition()-fri);
+        powerData.add(BrightDrive.getCurrentPosition()-bri);
     }
 
     public void motorDrive(){
@@ -376,19 +391,9 @@ public class TimeBasedReplay extends LinearOpMode {
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
         currentAngle = -angles.firstAngle;
 
-        //Allows for finer control, by curving the power based on stick position.
-        if(fineControl){
-            double gx = (gamepad1.left_stick_x * gamepad1.left_stick_x) * (gamepad1.left_stick_x/Math.abs(gamepad1.left_stick_x));
-            double gy = (gamepad1.left_stick_y * gamepad1.left_stick_y) * (gamepad1.left_stick_y/Math.abs(gamepad1.left_stick_y));
-            x = gx*Math.cos(-currentAngle) + -gy*Math.sin(-currentAngle);
-            y = gx*(-1*Math.sin(-currentAngle)) + -gy*Math.cos(-currentAngle);
-        }
-
-        //Regular 1-1 Control.
-        else{
-            x = gamepad1.left_stick_x*Math.cos(-currentAngle) + -gamepad1.left_stick_y*Math.sin(-currentAngle);
-            y = gamepad1.left_stick_x*(-1*Math.sin(-currentAngle)) + -gamepad1.left_stick_y*Math.cos(-currentAngle);
-        }
+        //Controls
+        x = gamepad1.left_stick_x*Math.cos(-currentAngle) + -gamepad1.left_stick_y*Math.sin(-currentAngle);
+        y = gamepad1.left_stick_x*(-1*Math.sin(-currentAngle)) + -gamepad1.left_stick_y*Math.cos(-currentAngle);
 
         //Rotate using the Right Stick.
         rot = gamepad1.right_stick_x;

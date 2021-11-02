@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Scanner;
 
 
-@Autonomous(name="PlayDataMarkII", group = "RoboReplay")
-public class PlayDataMarkII extends LinearOpMode {
+@Autonomous(name="PlayDataMarkIII", group = "RoboReplay")
+public class PlayDataMarkIII extends LinearOpMode {
 
     //This is the onboard gyroscope, pretty neat.
     BNO055IMU imu;
@@ -38,7 +38,7 @@ public class PlayDataMarkII extends LinearOpMode {
     private DcMotor BrightDrive = null;
 
     //Array Experimentation:
-    List<Double> powerData = new ArrayList<Double>();
+    List<Integer> powerData = new ArrayList<Integer>();
     int runThrough = 0;
 
     String[] words = null;
@@ -112,9 +112,10 @@ public class PlayDataMarkII extends LinearOpMode {
 //                BrightDrive.setPower(0);
 //            }
 
-            for(int i = 0; i<((WordCount/4)-1); i++){
-                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
+            for(int i = 1; i<((WordCount/4)-1); i++){
                 dataReplay(i);
+                telemetry.addData("I", i);
+                telemetry.update();
             }
 
             stop();
@@ -137,10 +138,24 @@ public class PlayDataMarkII extends LinearOpMode {
 
     public void dataReplay(int PB){
         int Gaming = PB * 4;
+        leftDrive.setTargetPosition(leftDrive.getCurrentPosition()+ powerData.get(Gaming));
+        BleftDrive.setTargetPosition(BleftDrive.getCurrentPosition()+ powerData.get(Gaming+1));
+        rightDrive.setTargetPosition(rightDrive.getCurrentPosition()+ powerData.get(Gaming+2));
+        BrightDrive.setTargetPosition(BrightDrive.getCurrentPosition()+ powerData.get(Gaming+3));
+
+        leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        BleftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        BrightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
         leftDrive.setPower(powerData.get(Gaming));
         BleftDrive.setPower(powerData.get(Gaming+1));
         rightDrive.setPower(powerData.get(Gaming+2));
         BrightDrive.setPower(powerData.get(Gaming+3));
+
+        while (leftDrive.isBusy() && BleftDrive.isBusy() && rightDrive.isBusy() && BrightDrive.isBusy()){
+
+        }
     }
 
     public void setData(String desiredFile) throws FileNotFoundException {
@@ -154,8 +169,8 @@ public class PlayDataMarkII extends LinearOpMode {
             sift = sift.replace("[", "");
             sift = sift.replace(",", "");
             sift = sift.replace("]", "");
-            double next = Double.parseDouble(sift);
-            powerData.add(next);
+            int next = Integer.parseInt(sift);
+            powerData.add((int) next);
             telemetry.addData("R:", s.next());
             telemetry.addData("R:", next);
             telemetry.update();
@@ -189,7 +204,7 @@ public class PlayDataMarkII extends LinearOpMode {
             sift = sift.replace("[", "");
             sift = sift.replace(",", "");
             sift = sift.replace("]", "");
-            double next = Double.parseDouble(sift);
+            int next = Integer.parseInt(sift);
             powerData.add(next);
         }
     }

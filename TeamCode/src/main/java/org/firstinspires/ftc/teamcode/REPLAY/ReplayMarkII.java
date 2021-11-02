@@ -1,9 +1,13 @@
 package org.firstinspires.ftc.teamcode.REPLAY;
 
+import android.provider.Settings;
+
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.ReadWriteFile;
 
@@ -27,6 +31,11 @@ public class ReplayMarkII extends LinearOpMode {
     private DcMotor rightDrive = null;
     private DcMotor BleftDrive = null;
     private DcMotor BrightDrive = null;
+    private DcMotor intake = null;
+    private DcMotor lift = null;
+    private DcMotor flip = null;
+//    private DcMotor spin = null;
+    private Servo grab = null;
 
     //Power stuff.
     double fl;
@@ -62,7 +71,10 @@ public class ReplayMarkII extends LinearOpMode {
     //Finer Control Mode"
     boolean fineControl = false;
 
-    int bruh = 0;
+    int bruh = 1 ;
+    double test;
+
+    boolean doIntake = false;
 
     @Override
     public void runOpMode() {
@@ -77,30 +89,50 @@ public class ReplayMarkII extends LinearOpMode {
         rightDrive = hardwareMap.get(DcMotor.class, "FR");
         BleftDrive  = hardwareMap.get(DcMotor.class, "BL");
         BrightDrive = hardwareMap.get(DcMotor.class, "BR");
+        intake = hardwareMap.get(DcMotor.class, "IT");
+        lift = hardwareMap.get(DcMotor.class, "LT");
+        flip = hardwareMap.get(DcMotor.class, "FP");
+        grab = hardwareMap.get(Servo.class, "Grab");
+//        spin = hardwareMap.get(DcMotor.class, "Spin");
 
         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+//        spin.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        lift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         leftDrive.setDirection(DcMotor.Direction.REVERSE);
         rightDrive.setDirection(DcMotor.Direction.FORWARD);
         BleftDrive.setDirection(DcMotor.Direction.REVERSE);
         BrightDrive.setDirection(DcMotor.Direction.FORWARD);
+        intake.setDirection(DcMotorSimple.Direction.REVERSE);
+        lift.setDirection(DcMotorSimple.Direction.FORWARD);
+        flip.setDirection(DcMotorSimple.Direction.FORWARD);
+//        spin.setDirection(DcMotorSimple.Direction.FORWARD);
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        flip.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+//        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         waitForStart();
 
         while (opModeIsActive()) {
+
+            test = System.currentTimeMillis();
 
             //When Back is pressed, switch between edit and play modes.
             if(gamepad1.back){
@@ -143,6 +175,20 @@ public class ReplayMarkII extends LinearOpMode {
                 telemetry.addData("Selected Save File:", selectedFile);
             }
 
+            else{
+//                if(gamepad1.start) spin.setPower(0.5);
+//                if(!gamepad1.start) spin.setPower(0);
+                grab.setDirection(Servo.Direction.FORWARD);
+                if(gamepad1.y) grab.setPosition(0.9);
+                if(gamepad1.b) grab.setPosition(0.5);
+                if(gamepad1.a){
+                    doIntake = !doIntake;
+                    while(gamepad1.a) idle();
+                }
+                if(doIntake) intake.setPower(0.7);
+                else intake.setPower(0);
+            }
+
             //Depending on the state of the robot, act accordingly.
             switch (mode){
                 case "Drive":
@@ -154,20 +200,6 @@ public class ReplayMarkII extends LinearOpMode {
                         while (gamepad1.right_stick_button) idle();
                     }
 
-                    //If Up is pressed, and there is data available for playback, play it forwards.
-                    if(gamepad1.dpad_up && powerData.size()/4 > 0){
-                        mode = "Forward";
-                        firstStart = true;
-                        while(gamepad1.dpad_up) idle();
-                    }
-
-                    //If Down is pressed, and there is data available for playback, play it backwards.
-                    if(gamepad1.dpad_down && powerData.size()/4 > 0){
-                        mode = "Backwards";
-                        firstStart = true;
-                        while(gamepad1.dpad_down) idle();
-                    }
-
                     //If X is pressed, toggle recording of Motor Powers.
                     if(gamepad1.x){
                         recording = !recording;
@@ -177,11 +209,7 @@ public class ReplayMarkII extends LinearOpMode {
                     //Record Data while recording is True.
                     if(recording) recordData();
 
-                    //Drive the Robot according to Player input.
-                    if (!gamepad1.right_bumper){
-                        motorDrive();
-                    }
-
+                    motorDrive();
 
                     break;
 
@@ -191,21 +219,6 @@ public class ReplayMarkII extends LinearOpMode {
                         mode = "Drive";
                         while(gamepad1.dpad_up) idle();
                     }
-
-//                    //When beginning playback, set the runThrough count to 0 to start at the correct place in the data.
-//                    if(firstStart){
-//                        runThrough = 0;
-//                        firstStart = false;
-//                    }
-//
-//                    //While there is still data to read, playback the Motor Powers.
-//                    if(runThrough < (powerData.size()/4)){
-//                        //Refresh the gyroscope every loop.
-//                        angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
-//                        currentAngle = -angles.firstAngle;
-//                        dataReplay(runThrough);
-//                        runThrough += 1;
-//                    }
 
                     //When playback is Complete, return to the main Drive mode.
                     else {
@@ -308,14 +321,18 @@ public class ReplayMarkII extends LinearOpMode {
 
             if (gamepad1.b) telemetry.addData("PowerData", powerData);
 
-            if (gamepad1.right_bumper){
-                //Refresh the gyroscope every loop.
-                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
-                currentAngle = -angles.firstAngle;
-                dataReplay(bruh);
-                bruh += 1;
-            }
+            //Lift Motor Controls.
+            if(!gamepad1.right_bumper || gamepad1.left_bumper) lift.setPower(0);
+            if(gamepad1.right_bumper) lift.setPower(1);
+            if(gamepad1.left_bumper) lift.setPower(-1);
 
+            //Flip Motor Controls.
+            if(!gamepad1.dpad_left || gamepad1.dpad_right) flip.setPower(0);
+            if(gamepad1.dpad_right) flip.setPower(0.35);
+            if(gamepad1.dpad_left) flip.setPower(-0.35);
+
+            telemetry.addData("TEST", System.currentTimeMillis() - test);
+            telemetry.addData("Rot", Math.toDegrees(currentAngle));
             telemetry.addData("State", mode);
             telemetry.addData("Run Through", runThrough);
             telemetry.addData("State Size", powerData.size()/4);
