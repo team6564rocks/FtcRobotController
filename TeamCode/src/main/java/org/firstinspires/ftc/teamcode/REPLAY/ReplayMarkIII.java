@@ -32,7 +32,7 @@ public class ReplayMarkIII extends LinearOpMode {
     private DcMotor intake = null;
     private DcMotor lift = null;
     private DcMotor flip = null;
-//    private DcMotor spin = null;
+    //    private DcMotor spin = null;
     private Servo grab = null;
 
     //Power stuff.
@@ -65,18 +65,15 @@ public class ReplayMarkIII extends LinearOpMode {
     String mode = "Drive";
     boolean firstStart = false;
     boolean edit = false;
+    int loopNum = 1;
 
     //File Select:
     String selectedFile = "File1.txt";
     int fileNum = 1;
 
-    //Finer Control Mode"
-    boolean fineControl = false;
-
-    int bruh = 1 ;
-    double test;
-
     boolean doIntake = false;
+
+    int toleranceVal = 100;
 
     @Override
     public void runOpMode() {
@@ -133,11 +130,6 @@ public class ReplayMarkIII extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-
-            test = System.currentTimeMillis();
-
-            recInitEncoder();
-
             //When Back is pressed, switch between edit and play modes.
             if(gamepad1.back){
                 edit = !edit;
@@ -182,9 +174,9 @@ public class ReplayMarkIII extends LinearOpMode {
             else{
 //                if(gamepad1.start) spin.setPower(0.5);
 //                if(!gamepad1.start) spin.setPower(0);
-                grab.setDirection(Servo.Direction.FORWARD);
-                if(gamepad1.y) grab.setPosition(0.9);
-                if(gamepad1.b) grab.setPosition(0.5);
+//                grab.setDirection(Servo.Direction.FORWARD);
+//                if(gamepad1.y) grab.setPosition(0.9);
+//                if(gamepad1.b) grab.setPosition(0.5);
                 if(gamepad1.a){
                     doIntake = !doIntake;
                     while(gamepad1.a) idle();
@@ -197,132 +189,80 @@ public class ReplayMarkIII extends LinearOpMode {
             switch (mode){
                 case "Drive":
 
-                    //When the Right Stick is pressed down, switch to Fluid Playback Mode.
-                    if(gamepad1.right_stick_button){
-                        mode = "Fluid";
-                        firstStart = true;
-                        while (gamepad1.right_stick_button) idle();
-                    }
+                    motorDrive();
 
                     //If X is pressed, toggle recording of Motor Powers.
                     if(gamepad1.x){
+                        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                        BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                        BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
                         recording = !recording;
                         while(gamepad1.x) idle();
                     }
 
+                    //Record Data while recording is True.
+                    if(recording && loopNum == 1) recordData();
 
+                    if(gamepad1.y){
+                        mode = "Forward";
+                        while(gamepad1.y) idle();
+                    }
 
-                    motorDrive();
+                    if(gamepad1.b){
+                        mode = "Forward";
+                        while(gamepad1.b) idle();
+                    }
 
                     break;
 
-                case "Forwards":
-                    //If Up is pressed, return to main Drive mode.
-                    if(gamepad1.dpad_up){
-                        mode = "Drive";
-                        while(gamepad1.dpad_up) idle();
+                case "Forward":
+                    recording = false;
+
+                    leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+                    for(int i = 0; i<((powerData.size()/8)-1); i++){
+                        dataReplay(i);
+                        telemetry.addData("I", i);
+                        telemetry.update();
                     }
 
-                    //When playback is Complete, return to the main Drive mode.
-                    else {
-                        mode = "Drive";
-                    }
+
+
+                    mode = "Drive";
 
                     break;
 
                 case "Backwards":
-                    //If Down is pressed, return to main Drive mode.
-                    if(gamepad1.dpad_down){
-                        mode = "Drive";
-                        while(gamepad1.dpad_down) idle();
+                    recording = false;
+
+                    leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+                    for(int i = ((powerData.size()/4)-1); i>1; i--){
+                        dataReplay(i);
+                        telemetry.addData("I", i);
+                        telemetry.update();
                     }
 
-                    //When beginning playback, set the runThrough count to 0 to start at the correct place in the data.
-                    if(firstStart){
-                        runThrough = (powerData.size()/4);
-                        firstStart = false;
-                    }
+                    leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                    rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                    BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                    BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-                    //While there is still data to read, playback the Motor Powers.
-                    if(runThrough < ((powerData.size()/4)-1) && runThrough > 0){
-                        dataReplayInverse(runThrough);
-                        runThrough -= 1;
-                    }
-
-                    //When playback is Complete, return to the main Drive mode.
-                    else {
-                        mode = "Drive";
-                    }
-
-                    break;
-
-
-                case "Fluid":
-                    //If the Right Stick is pressed, return to main Drive mode.
-                    if(gamepad1.right_stick_button){
-                        mode = "Drive";
-                        while(gamepad1.right_stick_button) idle();
-                    }
-
-                    if(gamepad1.left_stick_button){
-                        runThrough = powerData.size()/4;
-                    }
-
-                    //When beginning playback, set the runThrough count to 0 to start at the correct place in the data.
-                    if(firstStart){
-                        runThrough = 1;
-                        firstStart = false;
-                    }
-
-                    double reverse = 1;
-
-                    //Refresh the gyroscope every loop.
-                    angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
-                    currentAngle = -angles.firstAngle;
-
-                    //Set Left Stick X to a variable to reduce typing.
-                    double gx = gamepad1.left_stick_x;
-
-                    //Time Controls
-                    if(gx > 0){
-                        runThrough += 1;
-                        reverse = 1;
-                    }
-                    if(gx < 0){
-                        runThrough -= 1;
-                        reverse = -1;
-                    }
-
-                    //Keep the Run Through Value above 0 to avoid errors, and below the total amount of data to avoid crashing.
-                    if(runThrough < 1) runThrough = 1;
-                    if(runThrough > (powerData.size()/4)){
-                        runThrough = (powerData.size()/4);
-                    }
-
-                    if(runThrough >= (powerData.size()/4)){
-                        gx = 0;
-                    }
-
-                    if(gx < 0.25 && gx > -0.25){
-                        leftDrive.setPower(0);
-                        BleftDrive.setPower(0);
-                        rightDrive.setPower(0);
-                        BrightDrive.setPower(0);
-                    }
-                    else{
-                        if (reverse > 0){
-                            dataReplay(runThrough);
-                        }
-                        else{
-                            dataReplayInverse(runThrough);
-                        }
-
-                    }
+                    mode = "Drive";
 
                     break;
             }
-
-            if (gamepad1.b) telemetry.addData("PowerData", powerData);
 
             //Lift Motor Controls.
             if(!gamepad1.right_bumper || gamepad1.left_bumper) lift.setPower(0);
@@ -334,15 +274,14 @@ public class ReplayMarkIII extends LinearOpMode {
             if(gamepad1.dpad_right) flip.setPower(0.35);
             if(gamepad1.dpad_left) flip.setPower(-0.35);
 
-            //Record Data while recording is True.
-            if(recording) recordData();
-
-            telemetry.addData("TEST", System.currentTimeMillis() - test);
             telemetry.addData("Rot", Math.toDegrees(currentAngle));
             telemetry.addData("State", mode);
             telemetry.addData("Run Through", runThrough);
             telemetry.addData("State Size", powerData.size()/4);
             telemetry.update();
+
+            loopNum += 1;
+            if(loopNum > 10) loopNum = 1;
         }
     }
 
@@ -354,35 +293,69 @@ public class ReplayMarkIII extends LinearOpMode {
         stop();
     }
 
-    public void dataReplay(int PB){
-        int Gaming = PB * 4;
-        leftDrive.setPower(powerData.get(Gaming));
-        BleftDrive.setPower(powerData.get(Gaming+1));
-        rightDrive.setPower(powerData.get(Gaming+2));
-        BrightDrive.setPower(powerData.get(Gaming+3));
-    }
-
-    public void dataReplayInverse(int PB){
-        int Gaming = PB * 4;
-        leftDrive.setPower(-1*powerData.get(Gaming));
-        BleftDrive.setPower(-1*powerData.get(Gaming+1));
-        rightDrive.setPower(-1*powerData.get(Gaming+2));
-        BrightDrive.setPower(-1*powerData.get(Gaming+3));
-    }
-
-    public void recInitEncoder(){
-        fli = leftDrive.getCurrentPosition();
-        bli = BleftDrive.getCurrentPosition();
-        fri = rightDrive.getCurrentPosition();
-        bri = BrightDrive.getCurrentPosition();
-    }
-
     public void recordData(){
         //Take each of the Motor's Power Data, then save it to a list. Then save that list to a collection of lists.
-        powerData.add(leftDrive.getCurrentPosition()-fli);
-        powerData.add(BleftDrive.getCurrentPosition()-bli);
-        powerData.add(rightDrive.getCurrentPosition()-fri);
-        powerData.add(BrightDrive.getCurrentPosition()-bri);
+        powerData.add(leftDrive.getCurrentPosition());
+        powerData.add(BleftDrive.getCurrentPosition());
+        powerData.add(rightDrive.getCurrentPosition());
+        powerData.add(BrightDrive.getCurrentPosition());
+        powerData.add((int) (leftDrive.getPower()*10));
+        powerData.add((int) (BleftDrive.getPower()*10));
+        powerData.add((int) (rightDrive.getPower()*10));
+        powerData.add((int) (BrightDrive.getPower()*10));
+    }
+
+    public void dataReplay(int PB){
+        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        int Gaming = PB * 8;
+        leftDrive.setTargetPosition(powerData.get(Gaming));
+        BleftDrive.setTargetPosition(powerData.get(Gaming+1));
+        rightDrive.setTargetPosition(powerData.get(Gaming+2));
+        BrightDrive.setTargetPosition(powerData.get(Gaming+3));
+
+        leftDrive.setPower((double)powerData.get(Gaming+4)/10);
+        BleftDrive.setPower((double)powerData.get(Gaming+5)/10);
+        rightDrive.setPower((double)powerData.get(Gaming+6)/10);
+        BrightDrive.setPower((double)powerData.get(Gaming+7)/10);
+
+
+
+        while (Math.abs(leftDrive.getTargetPosition()-leftDrive.getCurrentPosition()) > toleranceVal &&
+                Math.abs(BleftDrive.getTargetPosition()-BleftDrive.getCurrentPosition()) > toleranceVal &&
+                Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition()) > toleranceVal &&
+                Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition()) > toleranceVal){
+
+            if(leftDrive.getPower() == 0){
+                double a = leftDrive.getTargetPosition()-leftDrive.getCurrentPosition();
+                leftDrive.setPower(0.1 * (Math.abs(a)/a));
+            }
+
+
+
+            telemetry.addData("FL", Math.abs(leftDrive.getTargetPosition()-leftDrive.getCurrentPosition()));
+            telemetry.addData("BL", Math.abs(BleftDrive.getTargetPosition()-BleftDrive.getCurrentPosition()));
+            telemetry.addData("FR", Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition()));
+            telemetry.addData("BR", Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition()));
+            telemetry.addData("FL", leftDrive.getPower());
+            telemetry.addData("BL", BleftDrive.getPower());
+            telemetry.addData("FR", rightDrive.getPower());
+            telemetry.addData("BR", BrightDrive.getPower());
+
+
+
+            telemetry.addData("Pos - ",  "%7d :%7d",
+                    leftDrive.getCurrentPosition(), leftDrive.getTargetPosition());
+            telemetry.addData("Pos - ",  "%7d :%7d",
+                    BleftDrive.getCurrentPosition(), BleftDrive.getTargetPosition());
+            telemetry.addData("Pos - ",  "%7d :%7d",
+                    rightDrive.getCurrentPosition(), rightDrive.getTargetPosition());
+            telemetry.addData("Pos - ",  "%7d :%7d",
+                    BrightDrive.getCurrentPosition(), BrightDrive.getTargetPosition());
+            telemetry.update();
+        }
     }
 
     public void motorDrive(){

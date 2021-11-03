@@ -97,28 +97,12 @@ public class PlayDataMarkIII extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-           //Play through the Total Data as long as there is Data left to play.
-//            if(runThrough < ((powerData.size()/4)-1)){
-//                //Refresh the gyroscope every loop.
-//                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
-//                double currentAngle = -angles.firstAngle;
-//                dataReplay(runThrough);
-//                runThrough += 1;
-//            }
-//            else {
-//                leftDrive.setPower(0);
-//                BleftDrive.setPower(0);
-//                rightDrive.setPower(0);
-//                BrightDrive.setPower(0);
-//            }
-
             for(int i = 1; i<((WordCount/4)-1); i++){
                 dataReplay(i);
                 telemetry.addData("I", i);
                 telemetry.update();
             }
 
-            stop();
             leftDrive.setPower(0);
             BleftDrive.setPower(0);
             rightDrive.setPower(0);
@@ -138,23 +122,26 @@ public class PlayDataMarkIII extends LinearOpMode {
 
     public void dataReplay(int PB){
         int Gaming = PB * 4;
-        leftDrive.setTargetPosition(leftDrive.getCurrentPosition()+ powerData.get(Gaming));
-        BleftDrive.setTargetPosition(BleftDrive.getCurrentPosition()+ powerData.get(Gaming+1));
-        rightDrive.setTargetPosition(rightDrive.getCurrentPosition()+ powerData.get(Gaming+2));
-        BrightDrive.setTargetPosition(BrightDrive.getCurrentPosition()+ powerData.get(Gaming+3));
+        leftDrive.setTargetPosition(powerData.get(Gaming));
+        BleftDrive.setTargetPosition(powerData.get(Gaming+1));
+        rightDrive.setTargetPosition(powerData.get(Gaming+2));
+        BrightDrive.setTargetPosition(powerData.get(Gaming+3));
 
         leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         BleftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         BrightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-        leftDrive.setPower(powerData.get(Gaming));
-        BleftDrive.setPower(powerData.get(Gaming+1));
-        rightDrive.setPower(powerData.get(Gaming+2));
-        BrightDrive.setPower(powerData.get(Gaming+3));
+        leftDrive.setPower(1);
+        BleftDrive.setPower(1);
+        rightDrive.setPower(1);
+        BrightDrive.setPower(1);
 
-        while (leftDrive.isBusy() && BleftDrive.isBusy() && rightDrive.isBusy() && BrightDrive.isBusy()){
-
+        while (leftDrive.isBusy() || BleftDrive.isBusy() || rightDrive.isBusy() || BrightDrive.isBusy()){
+            telemetry.addData("Pos - ",  "Running at %7d :%7d",
+                    leftDrive.getCurrentPosition(),
+                    rightDrive.getCurrentPosition());
+            telemetry.update();
         }
     }
 
