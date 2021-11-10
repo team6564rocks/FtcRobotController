@@ -45,6 +45,8 @@ public class PlayDataMarkIII extends LinearOpMode {
 
     int WordCount;
 
+    int toleranceVal = 10;
+
 
     @Override
     public void runOpMode() {
@@ -97,7 +99,7 @@ public class PlayDataMarkIII extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            for(int i = 1; i<((WordCount/4)-1); i++){
+            for(int i = 1; i<((WordCount/8)-1); i++){
                 dataReplay(i);
                 telemetry.addData("I", i);
                 telemetry.update();
@@ -121,27 +123,57 @@ public class PlayDataMarkIII extends LinearOpMode {
     }
 
     public void dataReplay(int PB){
-        int Gaming = PB * 4;
+        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        int Gaming = PB * 8;
         leftDrive.setTargetPosition(powerData.get(Gaming));
         BleftDrive.setTargetPosition(powerData.get(Gaming+1));
         rightDrive.setTargetPosition(powerData.get(Gaming+2));
         BrightDrive.setTargetPosition(powerData.get(Gaming+3));
 
-        leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        BleftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        BrightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        leftDrive.setPower((double)powerData.get(Gaming+4)/10);
+        BleftDrive.setPower((double)powerData.get(Gaming+5)/10);
+        rightDrive.setPower((double)powerData.get(Gaming+6)/10);
+        BrightDrive.setPower((double)powerData.get(Gaming+7)/10);
 
-        leftDrive.setPower(1);
-        BleftDrive.setPower(1);
-        rightDrive.setPower(1);
-        BrightDrive.setPower(1);
 
-        while (leftDrive.isBusy() || BleftDrive.isBusy() || rightDrive.isBusy() || BrightDrive.isBusy()){
-            telemetry.addData("Pos - ",  "Running at %7d :%7d",
-                    leftDrive.getCurrentPosition(),
-                    rightDrive.getCurrentPosition());
+
+        while (Math.abs(leftDrive.getTargetPosition()-leftDrive.getCurrentPosition()) > toleranceVal*Math.abs(2*leftDrive.getPower()) &&
+                Math.abs(BleftDrive.getTargetPosition()-BleftDrive.getCurrentPosition()) > toleranceVal*Math.abs(2*BleftDrive.getPower()) &&
+                Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition()) > toleranceVal*Math.abs(2*rightDrive.getPower()) &&
+                Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition()) > toleranceVal*Math.abs(2*BrightDrive.getPower())){
+
+            int FLs = Math.abs(leftDrive.getTargetPosition()-leftDrive.getCurrentPosition());
+            int BLs = Math.abs(BleftDrive.getTargetPosition()-BleftDrive.getCurrentPosition());
+            int FRs = Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition());
+            int BRs = Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition());
+
+            if(leftDrive.getPower() == 0 && BleftDrive.getPower() == 0 && rightDrive.getPower() == 0 && BrightDrive.getPower() == 0){
+                break;
+            }
+
+            telemetry.addData("FL", Math.abs(leftDrive.getTargetPosition()-leftDrive.getCurrentPosition()));
+            telemetry.addData("BL", Math.abs(BleftDrive.getTargetPosition()-BleftDrive.getCurrentPosition()));
+            telemetry.addData("FR", Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition()));
+            telemetry.addData("BR", Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition()));
+            telemetry.addData("FL Pow", leftDrive.getPower());
+            telemetry.addData("BL Pow", BleftDrive.getPower());
+            telemetry.addData("FR Pow", rightDrive.getPower());
+            telemetry.addData("BR Pow", BrightDrive.getPower());
             telemetry.update();
+
+            int FLf = Math.abs(leftDrive.getTargetPosition()-leftDrive.getCurrentPosition());
+            int BLf = Math.abs(BleftDrive.getTargetPosition()-BleftDrive.getCurrentPosition());
+            int FRf = Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition());
+            int BRf = Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition());
+
+            if(FLf > FLs) break;
+            if(BLf > BLs) break;
+            if(FRf > FRs) break;
+            if(BRf > BRs) break;
+
         }
     }
 
