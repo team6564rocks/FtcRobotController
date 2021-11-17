@@ -99,12 +99,15 @@ public class PlayDataMarkIII extends LinearOpMode {
 
         while (opModeIsActive()) {
 
+            floatMotors();
             for(int i = 1; i<((WordCount/8)-1); i++){
                 dataReplay(i);
                 telemetry.addData("I", i);
                 telemetry.update();
             }
 
+            brakeMotors();
+            
             leftDrive.setPower(0);
             BleftDrive.setPower(0);
             rightDrive.setPower(0);
@@ -120,6 +123,20 @@ public class PlayDataMarkIII extends LinearOpMode {
             telemetry.update();
 
         }
+    }
+
+    public void floatMotors(){
+        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+    }
+
+    public void brakeMotors(){
+        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
     public void dataReplay(int PB){
@@ -169,10 +186,10 @@ public class PlayDataMarkIII extends LinearOpMode {
             int FRf = Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition());
             int BRf = Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition());
 
-            if(FLf > FLs) break;
-            if(BLf > BLs) break;
-            if(FRf > FRs) break;
-            if(BRf > BRs) break;
+            if(FLf > FLs)  leftDrive.setPower(0);
+            if(BLf > BLs) BleftDrive.setPower(0);
+            if(FRf > FRs) rightDrive.setPower(0);
+            if(BRf > BRs) BrightDrive.setPower(0);
 
         }
     }

@@ -72,6 +72,7 @@ public class ReplayMarkIII extends LinearOpMode {
     int fileNum = 1;
 
     boolean doIntake = false;
+    boolean doGrab = false;
 
     int toleranceVal = 30;
 
@@ -174,9 +175,12 @@ public class ReplayMarkIII extends LinearOpMode {
             else{
 //                if(gamepad1.start) spin.setPower(0.5);
 //                if(!gamepad1.start) spin.setPower(0);
-//                grab.setDirection(Servo.Direction.FORWARD);
-//                if(gamepad1.y) grab.setPosition(0.9);
-//                if(gamepad1.b) grab.setPosition(0.5);
+                if(gamepad1.b){
+                    doGrab = !doGrab;
+                    while(gamepad1.b) idle();
+                }
+                if(doGrab) grab.setPosition(0);
+                else grab.setPosition(0.7);
                 if(gamepad1.a){
                     doIntake = !doIntake;
                     while(gamepad1.a) idle();
@@ -213,10 +217,10 @@ public class ReplayMarkIII extends LinearOpMode {
                         while(gamepad1.y) idle();
                     }
 
-                    if(gamepad1.b){
-                        mode = "Backwards";
-                        while(gamepad1.b) idle();
-                    }
+//                    if(gamepad1.b){
+//                        mode = "Backwards";
+//                        while(gamepad1.b) idle();
+//                    }
 
                     break;
 
@@ -228,6 +232,8 @@ public class ReplayMarkIII extends LinearOpMode {
                     BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
                     BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
+                    floatMotors();
+
                     for(int i = 0; i<((powerData.size()/8)-1); i++){
                         dataReplay(i);
                         telemetry.addData("I", i);
@@ -236,6 +242,7 @@ public class ReplayMarkIII extends LinearOpMode {
 
 
 
+                    brakeMotors();
                     mode = "Drive";
 
                     break;
@@ -248,7 +255,7 @@ public class ReplayMarkIII extends LinearOpMode {
                     BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
                     BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
-                    for(int i = ((powerData.size()/8)); i>1; i--){
+                    for(int i = ((powerData.size()/8)-1); i>1; i--){
                         dataReplayInverse(i);
                         telemetry.addData("I", i);
                         telemetry.update();
@@ -283,6 +290,20 @@ public class ReplayMarkIII extends LinearOpMode {
             loopNum += 1;
             if(loopNum > 2) loopNum = 1;
         }
+    }
+
+    public void floatMotors(){
+        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+    }
+
+    public void brakeMotors(){
+        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
     public void writeData(String desiredFile){
@@ -351,10 +372,10 @@ public class ReplayMarkIII extends LinearOpMode {
             int FRf = Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition());
             int BRf = Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition());
 
-            if(FLf > FLs) break;
-            if(BLf > BLs) break;
-            if(FRf > FRs) break;
-            if(BRf > BRs) break;
+            if(FLf > FLs)  leftDrive.setPower(0);
+            if(BLf > BLs) BleftDrive.setPower(0);
+            if(FRf > FRs) rightDrive.setPower(0);
+            if(BRf > BRs) BrightDrive.setPower(0);
 
         }
     }
