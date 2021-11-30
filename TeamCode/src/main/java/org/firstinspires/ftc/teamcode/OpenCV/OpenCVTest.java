@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.OpenCV;
 
+import com.acmerobotics.dashboard.FtcDashboard;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -23,9 +24,40 @@ public class OpenCVTest extends LinearOpMode {
 
     OpenCvWebcam webcam;
 
+    static final Point REGION = new Point(50,50);
+    static final Point REGION2 = new Point(100,100);
+
+    static final Point REGION1_TOPLEFT_ANCHOR_POINT = new Point(109,98);
+    static final Point REGION2_TOPLEFT_ANCHOR_POINT = new Point(181,98);
+    static final Point REGION3_TOPLEFT_ANCHOR_POINT = new Point(253,98);
+    static final int REGION_WIDTH = 20;
+    static final int REGION_HEIGHT = 20;
+
+    Point region1_pointA = new Point(
+            REGION1_TOPLEFT_ANCHOR_POINT.x,
+            REGION1_TOPLEFT_ANCHOR_POINT.y);
+    Point region1_pointB = new Point(
+            REGION1_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+            REGION1_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+    Point region2_pointA = new Point(
+            REGION2_TOPLEFT_ANCHOR_POINT.x,
+            REGION2_TOPLEFT_ANCHOR_POINT.y);
+    Point region2_pointB = new Point(
+            REGION2_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+            REGION2_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+    Point region3_pointA = new Point(
+            REGION3_TOPLEFT_ANCHOR_POINT.x,
+            REGION3_TOPLEFT_ANCHOR_POINT.y);
+    Point region3_pointB = new Point(
+            REGION3_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+            REGION3_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+
     @Override
     public void runOpMode()
     {
+
+
+
         /*
          * Instantiate an OpenCvCamera object for the camera we'll be using.
          * In this sample, we're using a webcam. Note that you will need to
@@ -48,6 +80,19 @@ public class OpenCVTest extends LinearOpMode {
          * (while a streaming session is in flight) *IS* supported.
          */
         webcam.setPipeline(new SamplePipeline());
+        //FTC Dashboard
+        FtcDashboard dashboard = FtcDashboard.getInstance();
+        telemetry = dashboard.getTelemetry();
+        FtcDashboard.getInstance().startCameraStream(webcam, 0);
+
+
+
+        Scalar BLUE = new Scalar(0, 0, 255);
+        Scalar GREEN = new Scalar(0, 255, 0);
+
+
+
+
 
         /*
          * Open the connection to the camera device. New in v1.4.0 is the ability
@@ -168,7 +213,7 @@ public class OpenCVTest extends LinearOpMode {
      * then you will need to account for that accordingly.
      */
 
-    
+
     class SamplePipeline extends OpenCvPipeline
     {
         boolean viewportPaused;
@@ -196,15 +241,33 @@ public class OpenCVTest extends LinearOpMode {
             /*
              * Draw a simple box around the middle 1/2 of the entire frame
              */
+
             Imgproc.rectangle(
                     input,
-                    new Point(
-                            input.cols()/4,
-                            input.rows()/4),
-                    new Point(
-                            input.cols()*(3f/4f),
-                            input.rows()*(3f/4f)),
-                    new Scalar(0, 255, 0), 4);
+                    region1_pointA,
+                    region1_pointB,
+                    new Scalar(0,0,255),
+                    2
+            );
+
+            Imgproc.rectangle(
+                    input,
+                    region2_pointA,
+                    region2_pointB,
+                    new Scalar(0,0,255),
+                    2
+            );
+
+            Imgproc.rectangle(
+                    input,
+                    region3_pointA,
+                    region3_pointB,
+                    new Scalar(0,0,255),
+                    2
+            );
+
+
+
 
             /**
              * NOTE: to see how to get data from your pipeline to your OpMode as well as how

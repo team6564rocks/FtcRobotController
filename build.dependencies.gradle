@@ -1,5 +1,6 @@
 repositories {
     mavenCentral()
+    maven { url = 'https://maven.brott.dev/' }
     google() // Needed for androidx
     jcenter()  // Needed for tensorflow-lite
     flatDir {
@@ -8,6 +9,7 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.acmerobotics.dashboard:dashboard:0.4.3'
     implementation 'org.firstinspires.ftc:Inspection:7.0.0'
     implementation 'org.firstinspires.ftc:Blocks:7.0.0'
     implementation 'org.firstinspires.ftc:Tfod:7.0.0'
@@ -20,4 +22,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'org.firstinspires.ftc:gameAssets-FreightFrenzy:1.0.0'
 }
+
+
 

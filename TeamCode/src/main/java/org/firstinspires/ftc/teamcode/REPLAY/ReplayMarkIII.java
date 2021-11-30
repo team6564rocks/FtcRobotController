@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.REPLAY;
 
+import com.acmerobotics.dashboard.FtcDashboard;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -78,6 +79,10 @@ public class ReplayMarkIII extends LinearOpMode {
 
     @Override
     public void runOpMode() {
+        //FTC Dashboard
+        FtcDashboard dashboard = FtcDashboard.getInstance();
+        telemetry = dashboard.getTelemetry();
+
         //This sets up the Gryoscope for use.
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.angleUnit = BNO055IMU.AngleUnit.RADIANS;
