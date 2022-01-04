@@ -1,14 +1,14 @@
 package org.firstinspires.ftc.teamcode.OpenCV;
 
-import android.widget.Switch;
-
 import com.acmerobotics.dashboard.FtcDashboard;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
@@ -21,19 +21,6 @@ import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.easyopencv.OpenCvPipeline;
 import org.openftc.easyopencv.OpenCvWebcam;
 
-import com.qualcomm.hardware.bosch.BNO055IMU;
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.ReadWriteFile;
-
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
-import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
-import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -41,11 +28,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 @TeleOp
-@Disabled
-public class PlayDataWithCamera extends LinearOpMode {
+public class BluePlayData extends LinearOpMode {
 
     private DcMotor flip = null;
 
@@ -127,6 +112,7 @@ public class PlayDataWithCamera extends LinearOpMode {
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         flip = hardwareMap.get(DcMotor.class, "FP");
+        flip.setDirection(DcMotorSimple.Direction.FORWARD);
         flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
@@ -166,18 +152,6 @@ public class PlayDataWithCamera extends LinearOpMode {
          * Wait for the user to press start on the Driver Station
          */
 
-        //Load TotalData from the selected Text File.
-        try {
-            setTxtCount("File1.txt");
-        } catch (FileNotFoundException e) {
-            telemetry.addData("IT FAILED", "Cry About It!!!");
-            telemetry.update();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        setDataTwo();
-
         waitForStart();
 
         double timerBase = System.currentTimeMillis();
@@ -185,49 +159,11 @@ public class PlayDataWithCamera extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            dif = avg1-avg2;
+            playFile("File2.txt");
+            flip.setPower(0.5);
+            sleep(5000);
+            stop();
 
-            if(timer < 1000){
-                if(dif > 70){
-                    POS = "Left";
-                    webcam.stopStreaming();
-                }
-                if(dif < -70){
-                    POS = "Center";
-                    webcam.stopStreaming();
-                }
-                timer = System.currentTimeMillis() - timerBase;
-            }
-            else{
-                POS = "Right";
-            }
-
-            telemetry.addData("Frame Count", webcam.getFrameCount());
-            telemetry.addData("FPS", String.format("%.2f", webcam.getFps()));
-            telemetry.addData("Dif", dif);
-            telemetry.addData("Pos", POS);
-            telemetry.addData("Reg1", avg1);
-            telemetry.addData("Reg2", avg2);
-            telemetry.update();
-
-            switch (POS){
-                case "Left":
-                    playFile("File1.txt");
-                    playFile("File2.txt");
-                    stop();
-                    break;
-
-                case "Center":
-                    stop();
-                    break;
-
-                case "Right":
-
-                    stop();
-                    break;
-            }
-
-            sleep(100);
         }
     }
 

@@ -6,9 +6,11 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.ReadWriteFile;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
@@ -74,8 +76,11 @@ public class ReplayMarkIII extends LinearOpMode {
 
     boolean doIntake = false;
     boolean doGrab = false;
+    double resetAngle = 0;
 
     int toleranceVal = 30;
+
+    DigitalChannel Touch;
 
     @Override
     public void runOpMode() {
@@ -133,9 +138,20 @@ public class ReplayMarkIII extends LinearOpMode {
         flip.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 //        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
+        Touch = hardwareMap.get(DigitalChannel.class, "Touch");
+
+        Touch.setMode(DigitalChannel.Mode.INPUT);
+
         waitForStart();
 
         while (opModeIsActive()) {
+            if(gamepad1.right_stick_button){
+                resetAngle = -angles.firstAngle;
+                sleep(100);
+            }
+
+
+
             //When Back is pressed, switch between edit and play modes.
             if(gamepad1.back){
                 edit = !edit;
@@ -145,7 +161,7 @@ public class ReplayMarkIII extends LinearOpMode {
             if(edit){
 
                 //When Y is pressed, clear the list of Motor Powers compiled so far.
-                if(gamepad1.y) powerData.clear();
+                if(gamepad1.b) powerData.clear();
 
                 //Use the DPad to change the selected file to save data to.
                 if(gamepad1.dpad_right){
@@ -161,6 +177,8 @@ public class ReplayMarkIII extends LinearOpMode {
                 telemetry.addLine(String.format("File%d.txt", fileNum - 1));
                 telemetry.addData(">", String.format("File%d.txt", fileNum));
                 telemetry.addLine(String.format("File%d.txt", fileNum + 1));
+
+                telemetry.addData("BRUH", String.valueOf(powerData));
 
                 //Press A to select a file to save to.
                 if(gamepad1.a){
@@ -178,8 +196,6 @@ public class ReplayMarkIII extends LinearOpMode {
             }
 
             else{
-//                if(gamepad1.start) spin.setPower(0.5);
-//                if(!gamepad1.start) spin.setPower(0);
                 if(gamepad1.b){
                     doGrab = !doGrab;
                     while(gamepad1.b) idle();
@@ -286,6 +302,9 @@ public class ReplayMarkIII extends LinearOpMode {
             if(gamepad1.dpad_right) flip.setPower(1);
             if(gamepad1.dpad_left) flip.setPower(-1);
 
+
+            flip.setPower(-gamepad2.right_stick_x);
+
             telemetry.addData("Rot", Math.toDegrees(currentAngle));
             telemetry.addData("State", mode);
             telemetry.addData("Run Through", runThrough);
@@ -293,7 +312,7 @@ public class ReplayMarkIII extends LinearOpMode {
             telemetry.update();
 
             loopNum += 1;
-            if(loopNum > 2) loopNum = 1;
+            if(loopNum > 5) loopNum = 1;
         }
     }
 
@@ -448,7 +467,7 @@ public class ReplayMarkIII extends LinearOpMode {
 
         //Refresh the gyroscope every loop.
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
-        currentAngle = -angles.firstAngle;
+        currentAngle = (-angles.firstAngle)-resetAngle;
 
         //Controls
         x = gamepad1.left_stick_x*Math.cos(-currentAngle) + -gamepad1.left_stick_y*Math.sin(-currentAngle);

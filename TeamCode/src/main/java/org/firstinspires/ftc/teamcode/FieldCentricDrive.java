@@ -57,6 +57,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
  */
 
 @TeleOp(name="Field Centric Drive")
+@Disabled
 public class FieldCentricDrive extends LinearOpMode {
 
     // Declare OpMode members.
