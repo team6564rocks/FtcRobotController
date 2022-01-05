@@ -1,11 +1,11 @@
-package org.firstinspires.ftc.teamcode.OpenCV;
+package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.dashboard.FtcDashboard;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -30,9 +30,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-@TeleOp
-@Disabled
-public class BluePlayData extends LinearOpMode {
+@Autonomous(name="Autonomous MK IV")
+public class AutonomousMarkIV extends LinearOpMode {
 
     private DcMotor flip = null;
 
@@ -66,6 +65,7 @@ public class BluePlayData extends LinearOpMode {
     double avg2 = 0;
     double dif = 0;
     String POS = "Null";
+    String START = "Null";
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -83,6 +83,10 @@ public class BluePlayData extends LinearOpMode {
     int WordCount;
 
     int toleranceVal = 10;
+
+    boolean Selecting = true;
+
+    int Selected = 1;
 
     @Override
     public void runOpMode()
@@ -114,7 +118,6 @@ public class BluePlayData extends LinearOpMode {
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         flip = hardwareMap.get(DcMotor.class, "FP");
-        flip.setDirection(DcMotorSimple.Direction.FORWARD);
         flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
@@ -141,15 +144,45 @@ public class BluePlayData extends LinearOpMode {
             @Override
             public void onError(int errorCode)
             {
+                /*
+                 * This will be called if the camera could not be opened
+                 */
             }
         });
 
         telemetry.addLine("Waiting for start");
         telemetry.update();
 
-        /*
-         * Wait for the user to press start on the Driver Station
-         */
+        while(Selecting){
+
+            //Use the DPad to change the selected file to save data to.
+            if(gamepad1.dpad_right){
+                Selected += 1;
+                while (gamepad1.dpad_right) idle();
+            }
+            if(gamepad1.dpad_left){
+                Selected -= 1;
+                while (gamepad1.dpad_left) idle();
+            }
+
+            if (Selected > 4) Selected = 1;
+
+            if (Selected < 1) Selected = 4;
+
+            if (Selected == 1) telemetry.addData("Start Position:", "Blue Duck");
+            if (Selected == 2) telemetry.addData("Start Position:", "Blue Shipping");
+            if (Selected == 3) telemetry.addData("Start Position:", "Red Duck");
+            if (Selected == 4) telemetry.addData("Start Position:", "Red Shipping");
+            telemetry.update();
+
+            if(gamepad1.a){
+                if (Selected == 1) START = "Blue Duck";
+                if (Selected == 2) START = "Blue Shipping";
+                if (Selected == 3) START = "Red Duck";
+                if (Selected == 4) START = "Red Shipping";
+                Selecting = false;
+            }
+        }
 
         waitForStart();
 
@@ -158,11 +191,98 @@ public class BluePlayData extends LinearOpMode {
 
         while (opModeIsActive()) {
 
-            playFile("File2.txt");
-            flip.setPower(0.5);
-            sleep(5000);
-            stop();
+            dif = avg1-avg2;
 
+            if(timer < 1000){
+                if(dif > 70){
+                    POS = "Left";
+                    webcam.stopStreaming();
+                }
+                if(dif < -70){
+                    POS = "Center";
+                    webcam.stopStreaming();
+                }
+                timer = System.currentTimeMillis() - timerBase;
+            }
+            else{
+                POS = "Right";
+            }
+
+            telemetry.addData("Frame Count", webcam.getFrameCount());
+            telemetry.addData("FPS", String.format("%.2f", webcam.getFps()));
+            telemetry.addData("Dif", dif);
+            telemetry.addData("Pos", POS);
+            telemetry.addData("Reg1", avg1);
+            telemetry.addData("Reg2", avg2);
+            telemetry.update();
+
+            switch(START){
+                case "Blue Duck":
+                    switch (POS){
+                        case "Left":
+                            stop();
+                            break;
+
+                        case "Center":
+                            stop();
+                            break;
+
+                        case "Right":
+
+                            stop();
+                            break;
+                    }
+                    break;
+                case "Blue Shipping":
+                    switch (POS){
+                        case "Left":
+                            stop();
+                            break;
+
+                        case "Center":
+                            stop();
+                            break;
+
+                        case "Right":
+
+                            stop();
+                            break;
+                    }
+                    break;
+                case "Red Duck":
+                    switch (POS){
+                        case "Left":
+                            stop();
+                            break;
+
+                        case "Center":
+                            stop();
+                            break;
+
+                        case "Right":
+
+                            stop();
+                            break;
+                    }
+                    break;
+                case "Red Shipping":
+                    switch (POS){
+                        case "Left":
+                            stop();
+                            break;
+
+                        case "Center":
+                            stop();
+                            break;
+
+                        case "Right":
+
+                            stop();
+                            break;
+                    }
+                    break;
+            }
+            sleep(100);
         }
     }
 

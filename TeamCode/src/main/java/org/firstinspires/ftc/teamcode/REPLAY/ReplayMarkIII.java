@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.REPLAY;
 
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -22,7 +23,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-
+@Disabled
 @TeleOp(name="Replay MK III", group = "RoboReplay")
 public class ReplayMarkIII extends LinearOpMode {
 
@@ -149,8 +150,6 @@ public class ReplayMarkIII extends LinearOpMode {
                 resetAngle = -angles.firstAngle;
                 sleep(100);
             }
-
-
 
             //When Back is pressed, switch between edit and play modes.
             if(gamepad1.back){
