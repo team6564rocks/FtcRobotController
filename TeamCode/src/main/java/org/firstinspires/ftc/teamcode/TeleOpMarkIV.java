@@ -17,13 +17,19 @@ import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 
 @TeleOp(name="TeleOp MK IV")
 public class TeleOpMarkIV extends LinearOpMode {
+
+    //PIDController
+    PIDController liftFind = new PIDController();
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -36,6 +42,12 @@ public class TeleOpMarkIV extends LinearOpMode {
     private DcMotor flip = null;
     //    private DcMotor spin = null;
     private Servo grab = null;
+
+    //File Play
+    String[] words = null;
+    int WordCount;
+
+    double liftRef = 0;
 
     //Power stuff.
     double fl;
@@ -102,6 +114,9 @@ public class TeleOpMarkIV extends LinearOpMode {
 
             if (gamepad1.y) replayStart();
 
+
+            telemetry.addData("Recording?", recording);
+            telemetry.addData("Size", powerData.size());
             telemetry.update();
         }
     }
@@ -116,14 +131,14 @@ public class TeleOpMarkIV extends LinearOpMode {
         if(edit){
 
             //When Start is pressed, save the compiled Motor Power data to a file for future autonomous playback.
-            if(gamepad2.start){
+            if(gamepad2.x){
                 writeData(selectedFile);
                 telemetry.addData("Data Saved To:", selectedFile);
                 while (gamepad1.start) idle();
             }
 
             //When Y is pressed, clear the list of Motor Powers compiled so far.
-            if(gamepad2.b) powerData.clear();
+            if(gamepad2.right_bumper) powerData.clear();
 
             //Use the DPad to change the selected file to save data to.
             if(gamepad2.dpad_right){
@@ -133,6 +148,9 @@ public class TeleOpMarkIV extends LinearOpMode {
             if(gamepad2.dpad_left){
                 fileNum -= 1;
                 while (gamepad2.dpad_left) idle();
+            }
+            if(gamepad2.left_stick_button){
+                playFile(selectedFile);
             }
 
             //Selection Menu.
@@ -146,12 +164,6 @@ public class TeleOpMarkIV extends LinearOpMode {
                 while (gamepad1.a) idle();
             }
 
-            //When Start is pressed, save the compiled Motor Power data to a file for future autonomous playback.
-            if(gamepad2.start){
-                writeData(selectedFile);
-                telemetry.addData("Data Saved To:", selectedFile);
-                while (gamepad1.start) idle();
-            }
 
             telemetry.addData("Selected Save File:", selectedFile);
 
@@ -293,6 +305,7 @@ public class TeleOpMarkIV extends LinearOpMode {
         //Refresh the gyroscope every loop.
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
         currentAngle = (-angles.firstAngle)-resetAngle;
+        telemetry.addData("Current Angle", currentAngle);
 
         //Controls
         x = gamepad1.left_stick_x*Math.cos(-currentAngle) + -gamepad1.left_stick_y*Math.sin(-currentAngle);
@@ -329,36 +342,45 @@ public class TeleOpMarkIV extends LinearOpMode {
     }
 
     public void externalMotors(){
-        //Lift Motor Controls.
-        if(!gamepad1.right_bumper || gamepad1.left_bumper) lift.setPower(0);
-        if(gamepad1.right_bumper) lift.setPower(1);
-        if(gamepad1.left_bumper) lift.setPower(-1);
+        if(doIntake){
+            intake.setPower(1);
+        }
+        else{
+            intake.setPower(0);
+        }
 
-        //Flip Motor Controls.
-        if(!gamepad1.dpad_left || gamepad1.dpad_right) flip.setPower(0);
-        if(gamepad1.dpad_right) flip.setPower(1);
-        if(gamepad1.dpad_left) flip.setPower(-1);
+        if(gamepad1.a){
+            doIntake = !doIntake;
+            while (gamepad1.a){
+                idle();
+            }
+        }
+
+
+        if(gamepad1.right_bumper){
+            liftRef = 1350;
+        }
+        if(gamepad1.left_bumper){
+            liftRef = 0;
+        }
+        lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
+
     }
 
     public void servoHandle(){
-        if(gamepad1.b){
-            doGrab = !doGrab;
-            while(gamepad1.b) idle();
-        }
-        if(doGrab) grab.setPosition(0);
-        else grab.setPosition(0.7);
-        if(gamepad1.a){
-            doIntake = !doIntake;
-            while(gamepad1.a) idle();
-        }
-        if(doIntake) intake.setPower(-0.7);
-        else intake.setPower(0);
+        if(gamepad1.dpad_right) grab.setPosition(0);
+        if(gamepad1.dpad_left) grab.setPosition(1);
+        telemetry.addData("Servo", grab.getPosition());
     }
 
     public void initializeAll(){
         //FTC Dashboard
         FtcDashboard dashboard = FtcDashboard.getInstance();
         telemetry = dashboard.getTelemetry();
+
+        //Servo.
+        grab = hardwareMap.get(Servo.class, "Grab");
+        grab.setDirection(Servo.Direction.FORWARD);
 
         //This sets up the Gryoscope for use.
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
@@ -374,8 +396,8 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive = hardwareMap.get(DcMotor.class, "BR");
         intake = hardwareMap.get(DcMotor.class, "IT");
         lift = hardwareMap.get(DcMotor.class, "LT");
-        flip = hardwareMap.get(DcMotor.class, "FP");
-        grab = hardwareMap.get(Servo.class, "Grab");
+
+
 //        spin = hardwareMap.get(DcMotor.class, "Spin");
 
         //Motor Init
@@ -385,7 +407,7 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
 //        spin.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         //Motor Init
@@ -401,7 +423,6 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive.setDirection(DcMotor.Direction.FORWARD);
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
         lift.setDirection(DcMotorSimple.Direction.FORWARD);
-        flip.setDirection(DcMotorSimple.Direction.FORWARD);
 //        spin.setDirection(DcMotorSimple.Direction.FORWARD);
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -410,7 +431,65 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        flip.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 //        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+    }
+
+    public void setTxtCount(String desiredFile) throws IOException {
+        //Scan through the selected File word by word.
+        String filename = desiredFile;
+        File file = AppUtil.getInstance().getSettingsFile(filename);
+
+        int wc = 0;
+        FileReader fr = new FileReader(file);
+        BufferedReader br = new BufferedReader(fr);
+        String s;
+        while((s=br.readLine())!=null){
+            words=s.split(" ");
+            wc = wc+words.length;
+        }
+        fr.close();
+        telemetry.addData("Total Number", wc);
+        telemetry.update();
+        WordCount = wc;
+    }
+
+    public void setDataTwo(){
+        for(int i = 0; i<WordCount; i++){
+            String sift = words[i];
+            sift = sift.replace("[", "");
+            sift = sift.replace(",", "");
+            sift = sift.replace("]", "");
+            int next = Integer.parseInt(sift);
+            powerData.add(next);
+        }
+    }
+
+    public void playFile(String input) {
+
+        try {
+            powerData.clear();
+
+            leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+            floatMotors();
+
+            String filename = input;
+            setTxtCount(input);
+            setDataTwo();
+
+            for(int i = 1; i<((WordCount/8)-1); i++){
+                dataReplay(i);
+            }
+
+            brakeMotors();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }

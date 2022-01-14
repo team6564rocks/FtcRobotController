@@ -37,10 +37,10 @@ public class AutonomousMarkIV extends LinearOpMode {
 
     OpenCvWebcam webcam;
 
-    static final Point REGION1_BOTTOMLEFT_ANCHOR_POINT = new Point(40,60);
-    static final Point REGION2_BOTTOMLEFT_ANCHOR_POINT = new Point(220,60);
+    static final Point REGION1_BOTTOMLEFT_ANCHOR_POINT = new Point(40,100);
+    static final Point REGION2_BOTTOMLEFT_ANCHOR_POINT = new Point(220,100);
     static final int REGION_WIDTH = 80;
-    static final int REGION_HEIGHT = 120;
+    static final int REGION_HEIGHT = 60;
 
     Point region1_pointA = new Point(
             REGION1_BOTTOMLEFT_ANCHOR_POINT.x,
@@ -117,9 +117,6 @@ public class AutonomousMarkIV extends LinearOpMode {
         BleftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        flip = hardwareMap.get(DcMotor.class, "FP");
-        flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
 
@@ -193,12 +190,12 @@ public class AutonomousMarkIV extends LinearOpMode {
 
             dif = avg1-avg2;
 
-            if(timer < 1000){
-                if(dif > 70){
+            if(timer < 2000){
+                if(dif > 15){
                     POS = "Left";
                     webcam.stopStreaming();
                 }
-                if(dif < -70){
+                if(dif < -15){
                     POS = "Center";
                     webcam.stopStreaming();
                 }
@@ -218,68 +215,30 @@ public class AutonomousMarkIV extends LinearOpMode {
 
             switch(START){
                 case "Blue Duck":
-                    switch (POS){
-                        case "Left":
-                            stop();
-                            break;
-
-                        case "Center":
-                            stop();
-                            break;
-
-                        case "Right":
-
-                            stop();
-                            break;
-                    }
+                    playFile("File-10.txt");
+                    playFile("File-11.txt");
+                    playFile("File-12.txt");
+                    stop();
                     break;
                 case "Blue Shipping":
-                    switch (POS){
-                        case "Left":
-                            stop();
-                            break;
-
-                        case "Center":
-                            stop();
-                            break;
-
-                        case "Right":
-
-                            stop();
-                            break;
-                    }
+                    playFile("File-1.txt");
+                    playFile("File-2.txt");
+                    playFile("File-3.txt");
+                    stop();
                     break;
                 case "Red Duck":
-                    switch (POS){
-                        case "Left":
-                            stop();
-                            break;
-
-                        case "Center":
-                            stop();
-                            break;
-
-                        case "Right":
-
-                            stop();
-                            break;
-                    }
+                    playFile("File10.txt");
+                    playFile("File11.txt");
+                    playFile("File12.txt");
+                    playFile("File13.txt");
+                    playFile("File14.txt");
+                    stop();
                     break;
                 case "Red Shipping":
-                    switch (POS){
-                        case "Left":
-                            stop();
-                            break;
-
-                        case "Center":
-                            stop();
-                            break;
-
-                        case "Right":
-
-                            stop();
-                            break;
-                    }
+                    playFile("File5.txt");
+                    playFile("File6.txt");
+                    playFile("File7.txt");
+                    stop();
                     break;
             }
             sleep(100);

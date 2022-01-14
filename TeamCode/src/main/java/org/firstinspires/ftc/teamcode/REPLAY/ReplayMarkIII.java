@@ -35,7 +35,6 @@ public class ReplayMarkIII extends LinearOpMode {
     private DcMotor BrightDrive = null;
     private DcMotor intake = null;
     private DcMotor lift = null;
-    private DcMotor flip = null;
     //    private DcMotor spin = null;
     private Servo grab = null;
 
@@ -102,8 +101,6 @@ public class ReplayMarkIII extends LinearOpMode {
         BrightDrive = hardwareMap.get(DcMotor.class, "BR");
         intake = hardwareMap.get(DcMotor.class, "IT");
         lift = hardwareMap.get(DcMotor.class, "LT");
-        flip = hardwareMap.get(DcMotor.class, "FP");
-        grab = hardwareMap.get(Servo.class, "Grab");
 //        spin = hardwareMap.get(DcMotor.class, "Spin");
 
         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -112,7 +109,6 @@ public class ReplayMarkIII extends LinearOpMode {
         BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        flip.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 //        spin.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -127,7 +123,6 @@ public class ReplayMarkIII extends LinearOpMode {
         BrightDrive.setDirection(DcMotor.Direction.FORWARD);
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
         lift.setDirection(DcMotorSimple.Direction.FORWARD);
-        flip.setDirection(DcMotorSimple.Direction.FORWARD);
 //        spin.setDirection(DcMotorSimple.Direction.FORWARD);
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -136,12 +131,7 @@ public class ReplayMarkIII extends LinearOpMode {
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        flip.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 //        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        Touch = hardwareMap.get(DigitalChannel.class, "Touch");
-
-        Touch.setMode(DigitalChannel.Mode.INPUT);
 
         waitForStart();
 
@@ -195,18 +185,7 @@ public class ReplayMarkIII extends LinearOpMode {
             }
 
             else{
-                if(gamepad1.b){
-                    doGrab = !doGrab;
-                    while(gamepad1.b) idle();
-                }
-                if(doGrab) grab.setPosition(0);
-                else grab.setPosition(0.7);
-                if(gamepad1.a){
-                    doIntake = !doIntake;
-                    while(gamepad1.a) idle();
-                }
-                if(doIntake) intake.setPower(-0.7);
-                else intake.setPower(0);
+
             }
 
             //Depending on the state of the robot, act accordingly.
@@ -296,13 +275,7 @@ public class ReplayMarkIII extends LinearOpMode {
             if(gamepad1.right_bumper) lift.setPower(1);
             if(gamepad1.left_bumper) lift.setPower(-1);
 
-            //Flip Motor Controls.
-            if(!gamepad1.dpad_left || gamepad1.dpad_right) flip.setPower(0);
-            if(gamepad1.dpad_right) flip.setPower(1);
-            if(gamepad1.dpad_left) flip.setPower(-1);
 
-
-            flip.setPower(-gamepad2.right_stick_x);
 
             telemetry.addData("Rot", Math.toDegrees(currentAngle));
             telemetry.addData("State", mode);
