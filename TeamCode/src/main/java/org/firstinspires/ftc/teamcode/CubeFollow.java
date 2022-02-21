@@ -14,11 +14,16 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
+import org.firstinspires.ftc.teamcode.OpenCV.WeFindingBlocks;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
+import org.opencv.core.RotatedRect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraFactory;
@@ -32,13 +37,13 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
-@Autonomous(name="Autonomous MK IV")
-public class AutonomousMarkIV extends LinearOpMode {
+@Autonomous(name="Cube Track Test")
+public class CubeFollow extends LinearOpMode {
 
     NormalizedColorSensor colorSensor;
-    NormalizedColorSensor bucketSensor;
 
     PIDController liftFind = new PIDController();
 
@@ -46,35 +51,10 @@ public class AutonomousMarkIV extends LinearOpMode {
 
     OpenCvWebcam webcam;
 
-    static final Point REGION1_BOTTOMLEFT_ANCHOR_POINT = new Point(40,100);
-    static final Point REGION2_BOTTOMLEFT_ANCHOR_POINT = new Point(220,100);
-    static final int REGION_WIDTH = 80;
-    static final int REGION_HEIGHT = 60;
+    double xThres = 160, yThres = 220;
 
-    Point region1_pointA = new Point(
-            REGION1_BOTTOMLEFT_ANCHOR_POINT.x,
-            REGION1_BOTTOMLEFT_ANCHOR_POINT.y);
-    Point region1_pointB = new Point(
-            REGION1_BOTTOMLEFT_ANCHOR_POINT.x + REGION_WIDTH,
-            REGION1_BOTTOMLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
-    Point region2_pointA = new Point(
-            REGION2_BOTTOMLEFT_ANCHOR_POINT.x,
-            REGION2_BOTTOMLEFT_ANCHOR_POINT.y);
-    Point region2_pointB = new Point(
-            REGION2_BOTTOMLEFT_ANCHOR_POINT.x + REGION_WIDTH,
-            REGION2_BOTTOMLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
-
-    /*
-     * Working variables
-     */
-
-    Mat region1 = new Mat();
-    Mat region2 = new Mat();
-    double avg1 = 0;
-    double avg2 = 0;
-    double dif = 0;
-    String POS = "Null";
-    String START = "Null";
+    SamplePipeline pipeline = new SamplePipeline();
+    SamplePipeline.Block StoneThing = new SamplePipeline.Block();
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -101,21 +81,16 @@ public class AutonomousMarkIV extends LinearOpMode {
 
     int Selected = 1;
 
-    double accel = 0.1;
-
     double liftRef = 0;
     double liftSet = 0;
+
 
     @Override
     public void runOpMode()
     {
 
-        colorSensor = hardwareMap.get(NormalizedColorSensor.class, "color");
-        bucketSensor = hardwareMap.get(NormalizedColorSensor.class, "Bucket");
-
         grab = hardwareMap.get(Servo.class, "Grab");
         grab.setDirection(Servo.Direction.FORWARD);
-
 
         leftDrive  = hardwareMap.get(DcMotor.class, "FL");
         rightDrive = hardwareMap.get(DcMotor.class, "FR");
@@ -156,16 +131,15 @@ public class AutonomousMarkIV extends LinearOpMode {
         spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
+        webcam = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 2"), cameraMonitorViewId);
 
-        webcam.setPipeline(new SamplePipeline());
+        webcam.setPipeline(pipeline);
+
         //FTC Dashboard
         FtcDashboard dashboard = FtcDashboard.getInstance();
         telemetry = dashboard.getTelemetry();
+        telemetry.setMsTransmissionInterval(20);
         FtcDashboard.getInstance().startCameraStream(webcam, 0);
-
-        Scalar BLUE = new Scalar(0, 0, 255);
-        Scalar GREEN = new Scalar(0, 255, 0);
 
         webcam.setMillisecondsPermissionTimeout(2500); // Timeout for obtaining permission is configurable. Set before opening.
         webcam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
@@ -183,446 +157,222 @@ public class AutonomousMarkIV extends LinearOpMode {
                  * This will be called if the camera could not be opened
                  */
             }
-        }
-        );
+        });
 
         telemetry.addLine("Waiting for start");
         telemetry.update();
 
-        while(Selecting){
-
-            NormalizedRGBA colors1 = bucketSensor.getNormalizedColors();
-
-            telemetry.addData("ColorSenseG", colors1.green);
-            telemetry.addData("ColorSenseR", colors1.red);
-            telemetry.addData("ColorSenseB", colors1.blue);
-            telemetry.addData("ColorSenseA", colors1.alpha);
-
-            //Use the DPad to change the selected file to save data to.
-            if(gamepad1.dpad_right){
-                Selected += 1;
-                while (gamepad1.dpad_right) idle();
-            }
-            if(gamepad1.dpad_left){
-                Selected -= 1;
-                while (gamepad1.dpad_left) idle();
-            }
-
-            if (Selected > 4) Selected = 1;
-
-            if (Selected < 1) Selected = 4;
-
-            if (Selected == 1) telemetry.addData("Start Position:", "Blue Duck");
-            if (Selected == 2) telemetry.addData("Start Position:", "Blue Shipping");
-            if (Selected == 3) telemetry.addData("Start Position:", "Red Duck");
-            if (Selected == 4) telemetry.addData("Start Position:", "Red Shipping");
-            telemetry.update();
-
-            if(gamepad1.a){
-                if (Selected == 1) START = "Blue Duck";
-                if (Selected == 2) START = "Blue Shipping";
-                if (Selected == 3) START = "Red Duck";
-                if (Selected == 4) START = "Red Shipping";
-                Selecting = false;
-            }
-        }
 
         grab.setPosition(1);
         waitForStart();
 
-        double timerBase = System.currentTimeMillis();
-        double timer = 0;
-
         while (opModeIsActive()) {
 
-            colorSensor.setGain(2);
+            double targetX = 160, targetY = 0;
 
-            dif = avg1-avg2;
+            ArrayList<SamplePipeline.Block> bruh = pipeline.getKnownStones();
 
-            if(dif > 15){
-                    POS = "Left";
-                    webcam.stopStreaming();
-                }
-            else if(dif < -15){
-                    POS = "Right";
-                    webcam.stopStreaming();
-                }
+            if(bruh.isEmpty()){
+                telemetry.addData("no,", "way");
+            }
             else{
-                POS = "Other";
-                webcam.stopStreaming();
-            }
-            webcam.stopStreaming();
+                try {
+                    for(SamplePipeline.Block block : bruh){
+                        try{
+                            if(block.y >= targetY){
+                                targetY = block.y;
+                                targetX = block.x;
+                            }
+//                            telemetry.addLine(String.valueOf(block.x));
+//                            telemetry.addLine(String.valueOf(block.y));
+                        }
+                        catch (NullPointerException ex){
 
-            telemetry.addData("Frame Count", webcam.getFrameCount());
-            telemetry.addData("FPS", String.format("%.2f", webcam.getFps()));
-            telemetry.addData("Dif", dif);
-            telemetry.addData("Pos", POS);
-            telemetry.addData("Reg1", avg1);
-            telemetry.addData("Reg2", avg2);
+                        }
+                    }
+                }
+                catch(ConcurrentModificationException ex){
+
+                }
+
+                //Once A Block Is At A Certain Distance And Centered, Switch To Encoders With Intake.
+                double y = 0, x= 0, rot = 0;
+
+                if(targetX > xThres){rot = 0.25;}
+                if(targetX < xThres){rot = -0.25;}
+                if(Math.abs(targetX-xThres) < 25){
+                    rot = 0;
+                    if(targetY < yThres){
+                        y = 0.1;
+                    }
+                }
+                if(Math.abs(targetX-xThres) < 25 && targetY > yThres){
+                    //Turn On Intake and Go Forwards A Set Distance
+                    leftDrive.setPower(0);
+                    BleftDrive.setPower(0);
+                    rightDrive.setPower(0);
+                    BrightDrive.setPower(0);
+                    intake.setPower(-1);
+                    bullshitEncoders(500, 0.5);
+                    sleep(500);
+                    intake.setPower(1);
+                    stop();
+                }
+
+                //Assigns power values corresponding to the desired vector.
+                double fl = (y+x+rot);
+                double bl = (y-x+rot);
+                double fr = (y-x-rot);
+                double br = (y+x-rot);
+
+                telemetry.addData("Y", y);
+                telemetry.addData("Rot", rot);
+
+                //When powers go above 1, divide every power value by the maximum to maintain a specific ratio.
+                //This allows the robot to better follow a specific vector.
+                if(Math.abs(fl) > 1 || Math.abs(bl) > 1 || Math.abs(fr) > 1 || Math.abs(br) > 1){
+                    double max = 0;
+                    max = Math.max(Math.abs(fl), Math.abs(bl));
+                    max = Math.max(Math.abs(fr), max);
+                    max = Math.max(Math.abs(br), max);
+
+                    fl /= max;
+                    bl /= max;
+                    fr /= max;
+                    br /= max;
+                }
+
+                //Motors accelerate to their set speed.
+                leftDrive.setPower(fl);
+                BleftDrive.setPower(bl);
+                rightDrive.setPower(fr);
+                BrightDrive.setPower(br);
+
+            }
+
+
+            telemetry.addData("Target X", targetX);
+            telemetry.addData("Target Y", targetY);
             telemetry.update();
-
-
-            switch(START){
-                case "Blue Duck":
-
-                    stop();
-                    break;
-                case "Blue Shipping":
-
-                    //3.4 Inches per 100u
-                    if(POS == "Left"){
-                        liftRef = 800;
-                    }
-                    if(POS == "Other"){
-//                        liftRef = 550;
-                        liftRef = 1350;
-                    }
-                    if(POS == "Right"){
-                        liftRef = 1350;
-                    }
-                    grab.setPosition(0.8);
-
-                    arcDrive(-100, -600, 0.25);
-                    arcDrive(-740, -540, 0.25);
-                    lift.setPower(0);
-                    grab.setPosition(0);
-                    sleep(750);
-                    grab.setPosition(1);
-                    liftRef = 0;
-                    arcDrive(460, 460, 0.25);
-                    arcDrive(710, 170, 0.25);
-                    arcDrive(260, -25, 0.15);
-
-                    blueCycle();
-
-                    stop();
-                    break;
-                case "Red Duck":
-                    liftRef = 1350;
-                    playFile("File10.txt");
-                    grab.setPosition(0);
-                    sleep(1000);
-                    grab.setPosition(1);
-                    sleep(1000);
-                    playFile("File11.txt");
-                    liftRef = 0;
-                    playFile("File12.txt");
-                    stop();
-                    break;
-                case "Red Shipping":
-                    bullTurn(-155, 0.6);
-                    bullshitEncoders(-740, 0.65);
-                    bullshitEncoders(-40, 0.2);
-                    if(POS == "Left"){
-                        liftRef = 1350;
-                    }
-                    if(POS == "Other"){
-//                        liftRef = 550;
-                        liftRef = 1350;
-                    }
-                    if(POS == "Right"){
-                        liftRef = 800;
-                    }
-                    liftRun();
-                    grab.setPosition(0);
-                    sleep(1250);
-                    grab.setPosition(1);
-                    if(POS == "Left" || POS == "Other"){
-                        sleep(850);
-                    }
-                    else{
-                        sleep(450);
-                    }
-                    liftRef = 0;
-                    liftRun();
-                    bullshitEncoders(850, 0.75);
-                    sleep(100);
-                    bullTurn(-395, 0.75);
-                    bullStrafeBlue(-250, 0.85);
-                    bullshitEncoders(1000, 0.85);
-                    bullshitEncoders(250, 0.35);
-                    intake.setPower(1);
-                    bullTurn(-150, 0.5);
-                    sleep(750);
-                    intake.setPower(-1);
-                    grab.setPosition(0.85);
-                    sleep(200);
-                    grab.setPosition(1);
-
-                    while(opModeIsActive()){
-                        NormalizedRGBA colors = colorSensor.getNormalizedColors();
-                        intoWall(0, -2);
-                        if(colors.blue > 0.15 && colors.red > 0.15 && colors.green > 0.15){
-                            intake.setPower(0);
-                            break;
-                        }
-                    }
-
-                    redReturn();
-
-                    bullshitEncoders(500, 0.75);
-                    bullshitEncoders(350, 0.3);
-                    intake.setPower(1);
-                    bullTurn(-150, 0.5);
-                    sleep(750);
-                    intake.setPower(-1);
-                    grab.setPosition(0.85);
-                    sleep(200);
-                    grab.setPosition(1);
-
-
-                    while(opModeIsActive()){
-                        NormalizedRGBA colors = colorSensor.getNormalizedColors();
-                        intoWall(0, -2);
-                        if(colors.blue > 0.15 && colors.red > 0.15 && colors.green > 0.15){
-                            intake.setPower(0);
-                            break;
-                        }
-                    }
-
-                    redReturn();
-
-                    stop();
-                    break;
-            }
-            sleep(100);
         }
     }
 
-    class SamplePipeline extends OpenCvPipeline
+    static class SamplePipeline extends OpenCvPipeline
     {
-        boolean viewportPaused;
 
-        @Override
-        public void init(Mat input) {
+        //All Of Our Working Buffers.
+        Mat cbMat = new Mat();
+        Mat thresholdMat = new Mat();
+        Mat morphedThreshold = new Mat();
+        Mat contoursOnPlainImageMat = new Mat();
 
-            region1 = input.submat(new Rect(region1_pointA, region1_pointB));
-            region2 = input.submat(new Rect(region2_pointA, region2_pointB));
+        //Threshold Value.
+        static final int CB_CHAN_MASK_THRESHOLD = 100;
 
+        static class Block{
+            double x;
+            double y;
         }
+
+        /*
+         * The elements we use for noise reduction
+         */
+        Mat erodeElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Mat dilateElement = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(6, 6));
+
+        //Colors.
+        final Scalar TEAL = new Scalar(3, 148, 252);
+        final Scalar PURPLE = new Scalar(158, 52, 235);
+        final Scalar RED = new Scalar(255, 0, 0);
+        final Scalar GREEN = new Scalar(0, 255, 0);
+        final Scalar BLUE = new Scalar(0, 0, 255);
+
+        final int CONTOUR_LINE_THICKNESS = 2;
+        final int CB_CHAN_IDX = 2;
+
+        ArrayList<Block> KnownStones = new ArrayList<>();
 
         @Override
         public Mat processFrame(Mat input) {
 
-            avg1 = Core.mean(region1).val[0];
-            avg2 = Core.mean(region2).val[0];
+            //Generates A List Of Contours, Then Analyzes Them.
+            KnownStones.clear();
+            for(MatOfPoint contour : findContours(input))
+            {
+                analyzeContour(contour, input);
+            }
 
-            Imgproc.rectangle(
-                    input,
-                    region1_pointA,
-                    region1_pointB,
-                    new Scalar(0,0,255),
-                    2
-            );
-
-            Imgproc.rectangle(
-                    input,
-                    region2_pointA,
-                    region2_pointB,
-                    new Scalar(0,0,255),
-                    2
-            );
-
-            return input;
+            return thresholdMat;
         }
 
-        @Override
-        public void onViewportTapped()
-        {
-            viewportPaused = !viewportPaused;
+        public ArrayList<Block> getKnownStones(){return KnownStones;}
 
-            if(viewportPaused) {
-                webcam.pauseViewport();
-            }
-            else {
-                webcam.resumeViewport();
-            }
-        }
-    }
+        ArrayList<MatOfPoint> findContours(Mat input){
+            // A list we'll be using to store the contours we find
+            ArrayList<MatOfPoint> contoursList = new ArrayList<>();
 
-    public void blueCycle(){
-        while(opModeIsActive()){
-            NormalizedRGBA colors = colorSensor.getNormalizedColors();
-            leftDrive.setPower(0.25);
-            rightDrive.setPower(0.25);
-            BleftDrive.setPower(0.25);
-            BrightDrive.setPower(0.25);
-            lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
-            if(colors.blue > 0.15 && colors.red > 0.15 && colors.green > 0.15){
-                leftDrive.setPower(0);
-                rightDrive.setPower(0);
-                BleftDrive.setPower(0);
-                BrightDrive.setPower(0);
-                break;
-            }
-        }
-        intake.setPower(-1);
-        while(opModeIsActive()){
-            NormalizedRGBA colors = bucketSensor.getNormalizedColors();
-            leftDrive.setPower(0.25);
-            rightDrive.setPower(0.25);
-            BleftDrive.setPower(0.25);
-            BrightDrive.setPower(0.25);
-            lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
-            if(colors.alpha > 0.5){
-                grab.setPosition(0.8);
-                leftDrive.setPower(0);
-                rightDrive.setPower(0);
-                BleftDrive.setPower(0);
-                BrightDrive.setPower(0);
-                intake.setPower(1);
-                break;
-            }
+            // Convert the input image to YCrCb color space, then extract the Cb channel
+            Imgproc.cvtColor(input, cbMat, Imgproc.COLOR_RGB2YCrCb);
+            Core.extractChannel(cbMat, cbMat, CB_CHAN_IDX);
+
+            // Threshold the Cb channel to form a mask, then run some noise reduction
+            Imgproc.threshold(cbMat, thresholdMat, CB_CHAN_MASK_THRESHOLD, 255, Imgproc.THRESH_BINARY_INV);
+            morphMask(thresholdMat, morphedThreshold);
+
+            // Ok, now actually look for the contours! We only look for external contours.
+            Imgproc.findContours(morphedThreshold, contoursList, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
+
+            // We do draw the contours we find, but not to the main input buffer.
+            input.copyTo(contoursOnPlainImageMat);
+            Imgproc.drawContours(contoursOnPlainImageMat, contoursList, -1, BLUE, CONTOUR_LINE_THICKNESS, 8);
+
+            return contoursList;
         }
 
-        while(opModeIsActive()){
-            NormalizedRGBA colors = colorSensor.getNormalizedColors();
-            leftDrive.setPower(-0.15);
-            rightDrive.setPower(-0.25);
-            BleftDrive.setPower(-0.15);
-            BrightDrive.setPower(-0.25);
-            lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
-            if(colors.blue > 0.15 && colors.red > 0.15 && colors.green > 0.15){
-                leftDrive.setPower(0);
-                rightDrive.setPower(0);
-                BleftDrive.setPower(0);
-                BrightDrive.setPower(0);
-                intake.setPower(0);
-                break;
+        void morphMask(Mat input, Mat output){
+            /*
+             * Apply some erosion and dilation for noise reduction
+             */
+
+            Imgproc.erode(input, output, erodeElement);
+            Imgproc.erode(output, output, erodeElement);
+
+            Imgproc.dilate(output, output, dilateElement);
+            Imgproc.dilate(output, output, dilateElement);
+        }
+
+        void analyzeContour(MatOfPoint contour, Mat input){
+            // Transform the contour to a different format
+            MatOfPoint2f contour2f = new MatOfPoint2f(contour.toArray());
+
+            // Do a rect fit to the contour, and draw it on the screen
+            RotatedRect rotatedRectFitToContour = Imgproc.minAreaRect(contour2f);
+            drawRotatedRect(rotatedRectFitToContour, input);
+
+            //Adds The Block Coords To The Known Stones List.
+            Block foundStone = new Block();
+            foundStone.x = rotatedRectFitToContour.center.x;
+            foundStone.y = rotatedRectFitToContour.center.y;
+
+            KnownStones.add(foundStone);
+
+        }
+
+        void drawRotatedRect(RotatedRect rect, Mat drawOn){
+            /*
+             * Draws a rotated rect by drawing each of the 4 lines individually
+             */
+
+            Point[] points = new Point[4];
+            rect.points(points);
+
+            for(int i = 0; i < 4; ++i)
+            {
+                Imgproc.line(drawOn, points[i], points[(i+1)%4], RED, 2);
             }
         }
-        liftRef = 1350;
-        arcDrive(-600, -600, 0.25);
-        arcDrive(-1000, -200, 0.25);
-        arcDrive(-500, 145, 0.15);
-        arcDrive(-650, -650, 0.25);
-        lift.setPower(0);
-        grab.setPosition(0);
-        sleep(750);
-        grab.setPosition(1);
-        liftRef = 0;
 
-    }
 
-    public void redReturn(){
-        bullshitEncoders(-1000, 0.8);
-        bullStrafeBlue(200, 0.85);
-        bullTurn(550, 0.6);
-        bullshitEncoders(-500, 0.75);
-        bullshitEncoders(-200, 0.2);
-        liftRef = 1350;
-        liftRun();
-        grab.setPosition(0);
-        sleep(1150);
-        grab.setPosition(1);
-        sleep(450);
-        liftRef = 0;
-        liftRun();
-        bullshitEncoders(750, 0.8);
-        bullTurn(-540, 0.7);
-        bullStrafeBlue(-250, 0.85);
-        bullshitEncoders(1250, 1);
-    }
-
-    public void arcDrive(int flD, int frD, double speed){
-        double lSpeed = 0;
-        double rSpeed = 0;
-        if(Math.abs(flD) > Math.abs(frD)){
-            lSpeed = flD/frD*speed;
-            rSpeed = speed;
-        }
-        else if(Math.abs(flD) < Math.abs(frD)){
-            lSpeed = speed;
-            rSpeed = frD/flD*speed;
-        }
-        else if(Math.abs(flD) == Math.abs(frD)){
-            lSpeed = speed;
-            rSpeed = speed;
-        }
-        brakeMotors();
-        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        leftDrive.setTargetPosition(flD);
-        BleftDrive.setTargetPosition(flD);
-        rightDrive.setTargetPosition(frD);
-        BrightDrive.setTargetPosition(frD);
-
-        leftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        BleftDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        BrightDrive.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        while((leftDrive.isBusy() && BleftDrive.isBusy() && rightDrive.isBusy() && BrightDrive.isBusy()) && opModeIsActive()){
-            leftDrive.setPower(Lerp(lSpeed, leftDrive.getPower(), accel));
-            BleftDrive.setPower(Lerp(lSpeed, BleftDrive.getPower(), accel));
-            BrightDrive.setPower(Lerp(rSpeed, rightDrive.getPower(), accel));
-            rightDrive.setPower(Lerp(rSpeed, BrightDrive.getPower(), accel));
-            lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
-        }
-
-        leftDrive.setPower(0);
-        BleftDrive.setPower(0);
-        BrightDrive.setPower(0);
-        rightDrive.setPower(0);
-
-        leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        leftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        BleftDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        BrightDrive.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-    }
-
-    public void intoWall(int blue, double dir){
-
-        if(blue == 1){
-            leftDrive.setPower(0.5 * dir);
-            BrightDrive.setPower(0.5 * dir);
-        }
-        else{
-            BleftDrive.setPower(0.5 * dir);
-            rightDrive.setPower(0.5 * dir);
-        }
-
-    }
-
-    public void setTxtCount(String desiredFile) throws IOException {
-        //Scan through the selected File word by word.
-        String filename = desiredFile;
-        File file = AppUtil.getInstance().getSettingsFile(filename);
-
-        int wc = 0;
-        FileReader fr = new FileReader(file);
-        BufferedReader br = new BufferedReader(fr);
-        String s;
-        while((s=br.readLine())!=null){
-            words=s.split(" ");
-            wc = wc+words.length;
-        }
-        fr.close();
-        telemetry.addData("Total Number", wc);
-        telemetry.update();
-        WordCount = wc;
-    }
-
-    public void setDataTwo(){
-        for(int i = 0; i<WordCount; i++){
-            String sift = words[i];
-            sift = sift.replace("[", "");
-            sift = sift.replace(",", "");
-            sift = sift.replace("]", "");
-            int next = Integer.parseInt(sift);
-            powerData.add(next);
-        }
     }
 
     public void floatMotors(){
@@ -773,6 +523,7 @@ public class AutonomousMarkIV extends LinearOpMode {
         BrightDrive.setPower(0);
         rightDrive.setPower(0);
     }
+
     public void bullStrafeRed(int distance, double speed){
         brakeMotors();
         leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -838,7 +589,7 @@ public class AutonomousMarkIV extends LinearOpMode {
             int FRs = Math.abs(rightDrive.getTargetPosition()-rightDrive.getCurrentPosition());
             int BRs = Math.abs(BrightDrive.getTargetPosition()-BrightDrive.getCurrentPosition());
 
-           // lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
+            // lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
 
             if(leftDrive.getPower() == 0 && BleftDrive.getPower() == 0 && rightDrive.getPower() == 0 && BrightDrive.getPower() == 0){
                 break;
@@ -869,36 +620,4 @@ public class AutonomousMarkIV extends LinearOpMode {
         }
     }
 
-    public void playFile(String input) {
-
-        try {
-            powerData.clear();
-
-            leftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            rightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            BleftDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-            floatMotors();
-
-            String filename = input;
-            setTxtCount(input);
-            setDataTwo();
-
-            for(int i = 1; i<((WordCount/8)-1); i++){
-                dataReplay(i);
-            }
-
-            brakeMotors();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-    }
-
-    public double Lerp(double t, double a, double r){
-        return a + ((t-a)*r);
-    }
 }

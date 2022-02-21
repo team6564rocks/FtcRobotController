@@ -201,6 +201,7 @@ public class SkystoneDeterminationExample extends LinearOpMode
              * buffer would be re-allocated the first time a real frame
              * was crunched)
              */
+
             inputToCb(firstFrame);
 
             /*
@@ -208,6 +209,7 @@ public class SkystoneDeterminationExample extends LinearOpMode
              * buffer. Any changes to the child affect the parent, and the
              * reverse also holds true.
              */
+
             region1_Cb = Cb.submat(new Rect(region1_pointA, region1_pointB));
             region2_Cb = Cb.submat(new Rect(region2_pointA, region2_pointB));
             region3_Cb = Cb.submat(new Rect(region3_pointA, region3_pointB));

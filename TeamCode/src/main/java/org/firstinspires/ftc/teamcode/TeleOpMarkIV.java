@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.ReadWriteFile;
@@ -28,6 +29,9 @@ import java.util.List;
 @TeleOp(name="TeleOp MK IV")
 public class TeleOpMarkIV extends LinearOpMode {
 
+    //Color Sensor
+    NormalizedColorSensor bucketSensor;
+
     //PIDController
     PIDController liftFind = new PIDController();
 
@@ -40,7 +44,7 @@ public class TeleOpMarkIV extends LinearOpMode {
     private DcMotor intake = null;
     private DcMotor lift = null;
     private DcMotor flip = null;
-    //    private DcMotor spin = null;
+        private DcMotor spin = null;
     private Servo grab = null;
 
     //File Play
@@ -87,14 +91,18 @@ public class TeleOpMarkIV extends LinearOpMode {
 
     boolean doIntake = false;
     boolean doGrab = false;
+    boolean slowDown = false;
+
+    double slowMult = 0.6;
     double resetAngle = 0;
 
-    int toleranceVal = 30;
+    int toleranceVal = 10;
 
     @Override
     public void runOpMode() {
 
         initializeAll();
+        grab.setPosition(1);
 
         waitForStart();
 
@@ -224,7 +232,7 @@ public class TeleOpMarkIV extends LinearOpMode {
 
         if(recording && loopNum == 1) recordData();
         loopNum += 1;
-        if(loopNum > 5) loopNum = 1;
+        if(loopNum > 3) loopNum = 1;
     }
 
     public void resetGyro(){
@@ -342,11 +350,39 @@ public class TeleOpMarkIV extends LinearOpMode {
     }
 
     public void externalMotors(){
+
+        if(gamepad2.dpad_down){
+            lift.setPower(-0.75);
+            while (gamepad2.dpad_down){
+                idle();
+            }
+            lift.setPower(0);
+            lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            lift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        }
+        if(gamepad2.dpad_up){
+            lift.setPower(0.75);
+            while (gamepad2.dpad_up){
+                idle();
+            }
+            lift.setPower(0);
+            lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            lift.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        }
+
+        //spin.setPower(0.8*(gamepad1.right_trigger-gamepad1.left_trigger));
+        spin.setPower(Lerp(0.8*(gamepad1.right_trigger-gamepad1.left_trigger), spin.getPower(), 0.05));
+
         if(doIntake){
             intake.setPower(1);
         }
         else{
-            intake.setPower(0);
+            if(gamepad1.back){
+                intake.setPower(-1);
+            }
+            else{
+                intake.setPower(0);
+            }
         }
 
         if(gamepad1.a){
@@ -356,27 +392,35 @@ public class TeleOpMarkIV extends LinearOpMode {
             }
         }
 
-
         if(gamepad1.right_bumper){
             liftRef = 1350;
         }
         if(gamepad1.left_bumper){
             liftRef = 0;
         }
+        if(gamepad1.left_bumper && gamepad1.right_bumper){
+            liftRef = 800;
+        }
         lift.setPower(liftFind.Basic(lift.getCurrentPosition(), liftRef, 50));
 
     }
 
     public void servoHandle(){
+        if(bucketSensor.getNormalizedColors().alpha > 0.5) grab.setPosition(0.8);
         if(gamepad1.dpad_right) grab.setPosition(0);
         if(gamepad1.dpad_left) grab.setPosition(1);
+
+        telemetry.addData("Green", bucketSensor.getNormalizedColors().green);
         telemetry.addData("Servo", grab.getPosition());
     }
 
     public void initializeAll(){
-        //FTC Dashboard
-        FtcDashboard dashboard = FtcDashboard.getInstance();
-        telemetry = dashboard.getTelemetry();
+//        //FTC Dashboard
+//        FtcDashboard dashboard = FtcDashboard.getInstance();
+//        telemetry = dashboard.getTelemetry();
+
+        //Color Sensor.
+        bucketSensor = hardwareMap.get(NormalizedColorSensor.class, "Bucket");
 
         //Servo.
         grab = hardwareMap.get(Servo.class, "Grab");
@@ -396,6 +440,7 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive = hardwareMap.get(DcMotor.class, "BR");
         intake = hardwareMap.get(DcMotor.class, "IT");
         lift = hardwareMap.get(DcMotor.class, "LT");
+        spin = hardwareMap.get(DcMotor.class, "SP");
 
 
 //        spin = hardwareMap.get(DcMotor.class, "Spin");
@@ -407,6 +452,7 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lift.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        spin.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
 //        spin.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
@@ -423,7 +469,7 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive.setDirection(DcMotor.Direction.FORWARD);
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
         lift.setDirection(DcMotorSimple.Direction.FORWARD);
-//        spin.setDirection(DcMotorSimple.Direction.FORWARD);
+        spin.setDirection(DcMotorSimple.Direction.FORWARD);
 
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -431,7 +477,7 @@ public class TeleOpMarkIV extends LinearOpMode {
         BrightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         lift.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-//        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        spin.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
     public void setTxtCount(String desiredFile) throws IOException {
@@ -491,5 +537,8 @@ public class TeleOpMarkIV extends LinearOpMode {
         }
 
 
+    }
+    public double Lerp(double t, double a, double r){
+        return a + ((t-a)*r);
     }
 }
